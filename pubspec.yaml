@@ -42,3 +42,10 @@ flutter:
   assets:
     - assets/background.png
     - assets/attendance.png
+    - assets/graduation_cap.svg
+    - assets/qr_icon.svg
+    - assets/calendar_icon.svg
+    - assets/check_circle.svg
+    - assets/location_icon.svg
+    - assets/camera_icon.svg
+    - assets/bell_icon.svg

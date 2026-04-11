@@ -1,4 +1,4 @@
-import 'package:auto_attendace/auth/screens/login_screen.dart';
+import 'package:auto_attendace/auth/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.cyan, fontFamily: 'Roboto'),
-      home: LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }
