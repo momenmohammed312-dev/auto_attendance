@@ -1,0 +1,44 @@
+name: auto_attendace
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: 2.5.1        # state management
+  go_router: 13.2.3              # navigation + role guards
+  dio: 5.4.3                     # HTTP + JWT interceptor
+  flutter_secure_storage: 9.2.2  # JWT token storage
+  google_maps_flutter: 2.13.1     # geo map card (lecturer)
+  geolocator: 11.1.0             # GPS location
+  camera: 0.11.2               # face scan
+  tflite_flutter: 0.10.0       # TFLite face recognition
+  percent_indicator: 4.0.0       # donut chart (88%)
+  fl_chart: 0.68.0                # bar charts (reports)
+  flutter_local_notifications: 17.1.0    # push notifications
+  intl: 0.19.0                 # date formatting
+
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+  fluttericon: ^2.0.0
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/attendance.png"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/background.png
+    - assets/attendance.png
