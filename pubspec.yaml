@@ -18,10 +18,10 @@ dependencies:
   google_maps_flutter: 2.13.1     # geo map card (lecturer)
   geolocator: 11.1.0             # GPS location
   camera: 0.11.2               # face scan
-  tflite_flutter: 0.10.0       # TFLite face recognition
+  tflite_flutter: ^0.11.0      # TFLite face recognition
   percent_indicator: 4.0.0       # donut chart (88%)
   fl_chart: 0.68.0                # bar charts (reports)
-  flutter_local_notifications: 17.1.0    # push notifications
+  flutter_local_notifications: ^18.0.0   # push notifications
   intl: 0.19.0                 # date formatting
 
 dev_dependencies:
@@ -34,18 +34,10 @@ dev_dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/attendance.png"
+  image_path: "assets/uni_img.png"
 
 flutter:
   uses-material-design: true
 
   assets:
-    - assets/background.png
-    - assets/attendance.png
-    - assets/graduation_cap.svg
-    - assets/qr_icon.svg
-    - assets/calendar_icon.svg
-    - assets/check_circle.svg
-    - assets/location_icon.svg
-    - assets/camera_icon.svg
-    - assets/bell_icon.svg
+    - assets/
