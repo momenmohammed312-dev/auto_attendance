@@ -1,6 +1,6 @@
 import 'dart:ui';
+import 'package:auto_attendace/router/app_router.dart'; // App routes for navigation
 import 'package:flutter/material.dart';
-import 'package:auto_attendace/auth/screens/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,6 +13,7 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
+  // Using global secureStorage instance from secure_storage.dart (Singleton pattern)
 
   @override
   void initState() {
@@ -28,19 +29,38 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
-      }
-    });
+    // Check if user is already logged in (auto-login with Remember Me)
+    // This replaces the old 5-second delay that always went to LoginScreen
+    _checkLoginStatus();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  /// Checks if user has saved login credentials (Remember Me feature)
+  ///
+  /// Flow:
+  /// 1. Wait 2 seconds for splash animation to complete
+  /// 2. Navigate to LoginScreen
+  ///
+  /// Note (Option A - Biometric button on LoginScreen):
+  /// We do NOT auto-login from SplashScreen.
+  /// If a saved user exists, LoginScreen will show the biometric login button
+  /// and the user can choose biometric login or manual email/password.
+  Future<void> _checkLoginStatus() async {
+    // Wait 2 seconds for splash animation to complete
+    // This gives users time to see the logo and branding
+    await Future.delayed(const Duration(seconds: 2));
+
+    // mounted check prevents setState/navigation errors if widget was disposed
+    if (!mounted) return;
+
+    // Always go to login screen.
+    // Any saved-user / Remember Me checks are handled by LoginScreen UI + biometric flow.
+    Navigator.pushReplacementNamed(context, AppRoutes.login);
   }
 
   @override

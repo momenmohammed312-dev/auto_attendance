@@ -17,12 +17,14 @@ dependencies:
   flutter_secure_storage: 9.2.2  # JWT token storage
   google_maps_flutter: 2.13.1     # geo map card (lecturer)
   geolocator: 11.1.0             # GPS location
-  camera: 0.11.2               # face scan
+  camera: ^0.12.0+1               # face scan
+  google_mlkit_face_detection: ^0.12.0 # face detection + head pose + eye open probability
   tflite_flutter: ^0.11.0      # TFLite face recognition
   percent_indicator: 4.0.0       # donut chart (88%)
   fl_chart: 0.68.0                # bar charts (reports)
   flutter_local_notifications: ^18.0.0   # push notifications
   intl: 0.19.0                 # date formatting
+  local_auth: ^2.1.8           # biometric authentication
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.4

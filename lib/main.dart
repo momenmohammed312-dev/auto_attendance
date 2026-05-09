@@ -1,6 +1,6 @@
-import 'package:auto_attendace/auth/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'router/app_router.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -14,7 +14,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.cyan, fontFamily: 'Roboto'),
-      home: const SplashScreen(),
+      navigatorKey: navigatorKey,
+      initialRoute: AppRoutes.splash,
+      onGenerateRoute: AppRouter.onGenerateRoute,
     );
   }
 }

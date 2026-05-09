@@ -22,5 +22,7 @@
   <string>1.0</string>
   <key>MinimumOSVersion</key>
   <string>13.0</string>
+  <key>NSFaceIDUsageDescription</key>
+  <string>This app uses Face ID for secure login</string>
 </dict>
 </plist>
