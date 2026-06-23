@@ -1,7 +1,7 @@
-/// smart_pulse_viz.dart
-/// --------------------
-/// Widget يعرض Animated Pulse للدلالة على أن الجلسة نشطة
-/// بيعرض عدد الحاضرين في الوسط مع دوائر نابضة حوليه
+// smart_pulse_viz.dart
+// --------------------
+// Widget يعرض Animated Pulse للدلالة على أن الجلسة نشطة
+// بيعرض عدد الحاضرين في الوسط مع دوائر نابضة حوليه
 
 import 'package:flutter/material.dart';
 import 'package:auto_attendace/core/app_colors.dart';

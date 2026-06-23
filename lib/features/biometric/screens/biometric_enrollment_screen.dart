@@ -88,7 +88,9 @@ class _BiometricEnrollmentScreenState
 
       await _cameraController?.dispose();
       _cameraController = controller;
-      _cameraReady = true;
+      setState(() {
+        _cameraReady = true;
+      });
       _startingCamera = false;
       return true;
     } catch (e) {
@@ -130,7 +132,9 @@ class _BiometricEnrollmentScreenState
     try {
       // Capture image
       final XFile capturedImage = await _cameraController!.takePicture();
+      if (!mounted) return;
       final Uint8List imageBytes = await capturedImage.readAsBytes();
+      if (!mounted) return;
 
       // Send to ML API for face registration
       final userId = ref.read(currentUserIdProvider) ?? '1';
@@ -138,11 +142,13 @@ class _BiometricEnrollmentScreenState
         employeeId: userId,
         imageBytes: imageBytes,
       );
+      if (!mounted) return;
 
       setState(() {
         _isLoading = false;
       });
 
+      if (!mounted) return;
       if (result.success) {
         setState(() {
           _currentStep = 3;
@@ -154,6 +160,7 @@ class _BiometricEnrollmentScreenState
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = 'Enrollment failed. Please try again.';

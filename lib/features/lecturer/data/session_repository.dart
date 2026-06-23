@@ -1,18 +1,19 @@
-/// session_repository.dart
-/// -----------------------
-/// Repository الخاص بالدكتور/المحاضر - مسؤول عن كل العمليات المتعلقة
-/// بجلسات الحضور مع الـ API
+// session_repository.dart
+// -----------------------
+// Repository الخاص بالدكتور/المحاضر - مسؤول عن كل العمليات المتعلقة
+// بجلسات الحضور مع الـ API
 
 import 'package:dio/dio.dart';
 import 'models/session_model.dart';
 import 'models/live_attendance_item.dart';
 import 'package:auto_attendace/core/utils/constants.dart';
+import 'package:auto_attendace/core/network/api_client.dart';
 
 class SessionRepository {
   final Dio _dio;
 
   SessionRepository({Dio? dio})
-      : _dio = dio ?? Dio(); // TODO: Add auth interceptor with JWT token from SecureStorageService for backend API calls
+      : _dio = dio ?? ApiClient().backendDio;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Session Management

@@ -79,6 +79,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     // Navigate to dashboard if user is logged in
     if (authState.user != null && !authState.isLoading && !_didNavigate) {
+      _lastShownError = null; // Reset so next logout+login shows fresh errors
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final role = authState.user!.role;
         Navigator.of(context).pushReplacementNamed(

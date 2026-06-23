@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 // Riverpod for state management
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// Color utility
+import '../../../core/utils/color_utils.dart';
+
 // Data models
 import '../data/models/excuse_request.dart';
 import '../data/models/schedule_item.dart';
@@ -544,12 +547,7 @@ class _ExcuseRequestScreenState extends ConsumerState<ExcuseRequestScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Color(
-                    int.tryParse(
-                          request.status.colorHex.replaceFirst('#', '0xFF'),
-                        ) ??
-                        0xFF9E9E9E,
-                  ),
+                  color: tryColorFromHex(request.status.colorHex),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(

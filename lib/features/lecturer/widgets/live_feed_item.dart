@@ -1,7 +1,7 @@
-/// live_feed_item.dart
-/// -------------------
-/// Widget يعرض سجل حضور طالب واحد في الـ live feed
-/// يظهر اسم الطالب، وقت الحضور، المسافة، وحالة التحقق
+// live_feed_item.dart
+// -------------------
+// Widget يعرض سجل حضور طالب واحد في الـ live feed
+// يظهر اسم الطالب، وقت الحضور، المسافة، وحالة التحقق
 
 import 'package:flutter/material.dart';
 import '../data/models/live_attendance_item.dart';

@@ -1,21 +1,22 @@
-/// notification_repository.dart
-/// -----------------------------
-/// Repository مسؤول عن:
-/// 1. جلب الإشعارات من الـ API
-/// 2. تعليمها كـ "مقروءة"
-/// 3. تهيئة flutter_local_notifications للإشعارات المحلية
+// notification_repository.dart
+// -----------------------------
+// Repository مسؤول عن:
+// 1. جلب الإشعارات من الـ API
+// 2. تعليمها كـ "مقروءة"
+// 3. تهيئة flutter_local_notifications للإشعارات المحلية
 
 import 'package:dio/dio.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'notification_model.dart';
 import 'package:auto_attendace/core/utils/constants.dart';
+import 'package:auto_attendace/core/network/api_client.dart';
 
 class NotificationRepository {
   final Dio _dio;
   final FlutterLocalNotificationsPlugin _localNotifications;
 
   NotificationRepository({Dio? dio})
-      : _dio = dio ?? Dio(), // TODO: Add auth interceptor with JWT token from SecureStorageService for backend API calls
+      : _dio = dio ?? ApiClient().backendDio,
         _localNotifications = FlutterLocalNotificationsPlugin() {
     _initLocalNotifications();
   }

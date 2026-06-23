@@ -1,7 +1,7 @@
-/// session_model.dart
-/// -------------------
-/// Model يمثّل جلسة حضور (Attendance Session) ينشئها الدكتور
-/// كل جلسة عندها موقع جغرافي ونصف قطر وقائمة بالطلاب الذين حضروا
+// session_model.dart
+// -------------------
+// Model يمثّل جلسة حضور (Attendance Session) ينشئها الدكتور
+// كل جلسة عندها موقع جغرافي ونصف قطر وقائمة بالطلاب الذين حضروا
 
 class SessionModel {
   final String id;

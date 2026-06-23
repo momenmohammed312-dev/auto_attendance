@@ -1,7 +1,7 @@
-/// notifications_provider.dart
-/// ----------------------------
-/// Riverpod State Management للإشعارات
-/// بيدير قائمة الإشعارات وعدد الغير مقروء
+// notifications_provider.dart
+// ----------------------------
+// Riverpod State Management للإشعارات
+// بيدير قائمة الإشعارات وعدد الغير مقروء
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/notification_repository.dart';

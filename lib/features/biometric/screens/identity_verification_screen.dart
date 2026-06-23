@@ -202,6 +202,7 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
         _showError('Failed to capture image. Please try again.');
         return;
       }
+      if (!mounted) return;
       final Uint8List imageBytes = await capturedImage.readAsBytes();
       if (!mounted) return;
 

@@ -1,7 +1,7 @@
-/// doctor_monitor_screen.dart
-/// --------------------------
-/// الشاشة الرئيسية للدكتور - لوحة التحكم في جلسة الحضور
-/// بتجمع كل الـ widgets (الخريطة، الـ radius، الـ pulse، والـ live feed)
+// doctor_monitor_screen.dart
+// --------------------------
+// الشاشة الرئيسية للدكتور - لوحة التحكم في جلسة الحضور
+// بتجمع كل الـ widgets (الخريطة، الـ radius، الـ pulse، والـ live feed)
 
 import 'dart:async';
 import 'package:flutter/material.dart';

@@ -30,13 +30,13 @@ class SubjectAttendance {
 
   factory SubjectAttendance.fromJson(Map<String, dynamic> json) {
     return SubjectAttendance(
-      subjectId: json['subjectId'],
-      subjectName: json['subjectName'],
-      totalLectures: json['totalLectures'],
-      attendedLectures: json['attendedLectures'],
-      missedLectures: json['missedLectures'],
-      attendancePercentage: json['attendancePercentage'],
-      colorHex: json['colorHex'],
+      subjectId: json['subjectId'] ?? '',
+      subjectName: json['subjectName'] ?? '',
+      totalLectures: json['totalLectures'] ?? 0,
+      attendedLectures: json['attendedLectures'] ?? 0,
+      missedLectures: json['missedLectures'] ?? 0,
+      attendancePercentage: (json['attendancePercentage'] ?? 0).toDouble(),
+      colorHex: json['colorHex'] ?? '#9E9E9E',
     );
   }
 

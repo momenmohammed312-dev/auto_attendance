@@ -1,7 +1,7 @@
-/// notification_center_screen.dart
-/// ---------------------------------
-/// شاشة مركز الإشعارات - بتعرض كل الإشعارات مرتّبة
-/// مع إمكانية التعليم كمقروء وتصفية حسب النوع
+// notification_center_screen.dart
+// ---------------------------------
+// شاشة مركز الإشعارات - بتعرض كل الإشعارات مرتّبة
+// مع إمكانية التعليم كمقروء وتصفية حسب النوع
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

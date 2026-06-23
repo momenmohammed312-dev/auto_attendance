@@ -1,6 +1,6 @@
-/// radius_slider_card.dart
-/// -----------------------
-/// Widget يعرض Slider لتحديد نصف قطر نطاق الحضور
+// radius_slider_card.dart
+// -----------------------
+// Widget يعرض Slider لتحديد نصف قطر نطاق الحضور
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

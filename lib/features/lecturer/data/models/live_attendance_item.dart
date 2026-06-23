@@ -1,7 +1,7 @@
-/// live_attendance_item.dart
-/// -------------------------
-/// Model يمثّل سجل حضور طالب واحد بشكل فوري (real-time)
-/// يُستخدم في LiveFeedItem widget لعرض قائمة الطلاب الذين سجّلوا حضورهم
+// live_attendance_item.dart
+// -------------------------
+// Model يمثّل سجل حضور طالب واحد بشكل فوري (real-time)
+// يُستخدم في LiveFeedItem widget لعرض قائمة الطلاب الذين سجّلوا حضورهم
 
 class LiveAttendanceItem {
   final String id;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/color_utils.dart';
 
 /// Card widget displaying subject attendance in vertical bar format.
 ///
@@ -18,14 +19,7 @@ class SubjectCard extends StatelessWidget {
     required this.colorHex,
   });
 
-  /// Converts the hex color string to a Flutter Color.
-  ///
-  /// Example: "#2E5BFF" -> Color(0xFF2E5BFF)
-  Color get _barColor {
-    return Color(
-      (int.tryParse(colorHex.replaceFirst('#', ''), radix: 16) ?? 0xFF9E9E9E) + 0xFF000000,
-    );
-  }
+  Color get _barColor => tryColorFromHex(colorHex);
 
   @override
   Widget build(BuildContext context) {

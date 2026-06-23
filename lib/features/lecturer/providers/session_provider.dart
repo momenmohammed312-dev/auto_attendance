@@ -1,6 +1,6 @@
-/// session_provider.dart
-/// ----------------------
-/// Riverpod State Management للدكتور - الوسيط بين الـ UI والـ Repository
+// session_provider.dart
+// ----------------------
+// Riverpod State Management للدكتور - الوسيط بين الـ UI والـ Repository
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/session_repository.dart';

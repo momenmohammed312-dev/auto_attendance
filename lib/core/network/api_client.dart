@@ -18,6 +18,16 @@ class ApiClient {
     },
   ))..interceptors.add(MlSecretInterceptor());
 
+  late final Dio backendDio = Dio(BaseOptions(
+    baseUrl: ApiEndpoints.backendBaseUrl,
+    connectTimeout: const Duration(seconds: 15),
+    receiveTimeout: const Duration(seconds: 30),
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  ))..interceptors.add(BackendAuthInterceptor());
+
   Future<Response<T>> mlPost<T>(String path, {dynamic data}) {
     return mlDio.post<T>(path, data: data);
   }
@@ -31,5 +41,17 @@ class ApiClient {
     required FormData formData,
   }) {
     return mlDio.post<T>(path, data: formData);
+  }
+
+  Future<Response<T>> backendGet<T>(String path, {Map<String, dynamic>? queryParameters}) {
+    return backendDio.get<T>(path, queryParameters: queryParameters);
+  }
+
+  Future<Response<T>> backendPost<T>(String path, {dynamic data}) {
+    return backendDio.post<T>(path, data: data);
+  }
+
+  Future<Response<T>> backendPatch<T>(String path, {dynamic data}) {
+    return backendDio.patch<T>(path, data: data);
   }
 }
