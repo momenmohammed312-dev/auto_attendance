@@ -223,8 +223,19 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
         _verificationState = 'verifying_location';
       });
 
+      // Resolve studentId: prefer route args, fallback to auth provider
+      final effectiveStudentId = _studentId.isNotEmpty
+          ? _studentId
+          : (ref.read(currentUserIdProvider) ?? '');
+      debugPrint('IdentityVerify: effectiveStudentId=$effectiveStudentId (from _studentId=$_studentId)');
+
+      if (effectiveStudentId.isEmpty) {
+        _showError('Student ID not found. Please login again.');
+        return;
+      }
+
       final checkInResult = await _faceService.attendanceCheckIn(
-        employeeId: _studentId,
+        employeeId: effectiveStudentId,
         imageBytes: imageBytes,
       );
       if (!mounted) return;
