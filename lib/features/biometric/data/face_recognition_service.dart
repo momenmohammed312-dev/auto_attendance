@@ -9,11 +9,17 @@ class FaceEnrollResult {
   final bool success;
   final String? message;
   final String? errorMessage;
+  final String? employeeId;
+  final int? samplesSaved;
+  final int? recommendedSamples;
 
   const FaceEnrollResult({
     required this.success,
     this.message,
     this.errorMessage,
+    this.employeeId,
+    this.samplesSaved,
+    this.recommendedSamples,
   });
 }
 
@@ -33,12 +39,12 @@ class FaceVerifyResult {
 
 class LivenessResult {
   final bool isLive;
-  final double? spoofProbability;
+  final Map<String, dynamic>? details;
   final String? errorMessage;
 
   const LivenessResult({
     required this.isLive,
-    this.spoofProbability,
+    this.details,
     this.errorMessage,
   });
 }
@@ -49,6 +55,8 @@ class AttendanceCheckInResult {
   final String? employeeId;
   final String? message;
   final String? errorMessage;
+  final double? distance;
+  final double? confidence;
 
   const AttendanceCheckInResult({
     required this.success,
@@ -56,6 +64,8 @@ class AttendanceCheckInResult {
     this.employeeId,
     this.message,
     this.errorMessage,
+    this.distance,
+    this.confidence,
   });
 }
 
@@ -85,8 +95,11 @@ class FaceRecognitionService {
       final data = response.data;
       if (data is Map<String, dynamic>) {
         return FaceEnrollResult(
-          success: true,
-          message: data['message']?.toString() ?? data['detail']?.toString(),
+          success: data['success'] == true,
+          message: data['message']?.toString(),
+          employeeId: data['employee_id']?.toString(),
+          samplesSaved: data['samples_saved'] as int?,
+          recommendedSamples: data['recommended_samples'] as int?,
         );
       }
       return const FaceEnrollResult(success: true);
@@ -121,10 +134,12 @@ class FaceRecognitionService {
       final data = response.data;
       if (data is Map<String, dynamic>) {
         return AttendanceCheckInResult(
-          success: true,
+          success: data['success'] == true,
           status: data['status']?.toString(),
-          employeeId: data['employee_id']?.toString() ?? data['student_id']?.toString(),
-          message: data['message']?.toString() ?? data['detail']?.toString(),
+          employeeId: data['employee_id']?.toString(),
+          message: data['message']?.toString(),
+          distance: (data['distance'] as num?)?.toDouble(),
+          confidence: (data['confidence'] as num?)?.toDouble(),
         );
       }
       return const AttendanceCheckInResult(success: true);
@@ -157,11 +172,10 @@ class FaceRecognitionService {
 
       final data = response.data;
       if (data is Map<String, dynamic>) {
-        final matched = data['matched'] ?? data['recognized'] ?? false;
         return FaceVerifyResult(
-          matched: matched == true,
+          matched: data['recognized'] == true,
           confidence: (data['confidence'] as num?)?.toDouble() ?? 0.0,
-          employeeId: data['employee_id']?.toString() ?? data['student_id']?.toString(),
+          employeeId: data['employee_id']?.toString(),
         );
       }
       return const FaceVerifyResult(matched: false);
@@ -194,10 +208,9 @@ class FaceRecognitionService {
 
       final data = response.data;
       if (data is Map<String, dynamic>) {
-        final isLive = data['is_live'] ?? data['live'] ?? false;
         return LivenessResult(
-          isLive: isLive == true,
-          spoofProbability: (data['spoof_probability'] as num?)?.toDouble(),
+          isLive: data['is_live'] == true,
+          details: data['details'] as Map<String, dynamic>?,
         );
       }
       return const LivenessResult(isLive: false);

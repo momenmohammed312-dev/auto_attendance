@@ -9,7 +9,7 @@ class ApiEndpoints {
   // Usage: flutter run --dart-define=ML_SECRET_KEY=actual_secret
   static const String mlSecretKey = String.fromEnvironment(
     'ML_SECRET_KEY',
-    defaultValue: '',
+    defaultValue: 'ml-secret-2024-graduation',
   );
 
   static const String mlHealth = '/health';
