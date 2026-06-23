@@ -22,6 +22,13 @@ import '../features/student/screens/student_profile_screen.dart';
 /// Contains: Statistics cards, monthly trend chart, and recent records list
 import '../features/student/screens/student_reports_screen.dart';
 
+/// Excuse Request screen - Allows students to submit excuses for absences
+/// Contains: Lecture selection, excuse type, reason input, and request history
+import '../features/student/screens/excuse_request_screen.dart';
+
+// Doctor screens
+import '../features/lecturer/screens/doctor_dashboard_screen.dart';
+
 // Biometric screens
 import '../features/biometric/screens/biometric_enrollment_screen.dart';
 import '../features/biometric/screens/verification_methods_screen.dart';
@@ -59,6 +66,10 @@ class AppRoutes {
   /// Student Reports - Detailed attendance reports and statistics
   /// Route: /student/reports
   static const String studentReports = '/student/reports';
+
+  /// Excuse Request - Submit and track excuse requests
+  /// Route: /student/excuse
+  static const String excuseRequest = '/student/excuse';
 
   // ============================================================
   // DOCTOR ROUTES (TODO: Implement doctor screens)
@@ -134,11 +145,15 @@ class AppRouter {
       case AppRoutes.studentReports:
         return MaterialPageRoute(builder: (_) => const StudentReportsScreen());
 
-      /// Doctor Dashboard route - Placeholder, redirects to student dashboard
-      /// TODO: Replace with actual DoctorDashboardScreen when implemented
+      /// Excuse Request route - Submit and track excuse requests
+      /// Arguments: None
+      case AppRoutes.excuseRequest:
+        return MaterialPageRoute(builder: (_) => const ExcuseRequestScreen());
+
+      /// Doctor Dashboard route - Main doctor interface with bottom nav
       case AppRoutes.doctorDashboard:
         return MaterialPageRoute(
-          builder: (_) => const StudentDashboardScreen(), // Placeholder
+          builder: (_) => const DoctorDashboardScreen(),
         );
 
       // ============================================================

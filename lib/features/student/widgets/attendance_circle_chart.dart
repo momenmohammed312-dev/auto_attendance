@@ -37,25 +37,26 @@ class AttendanceCircleChart extends StatelessWidget {
         children: [
           // الدائرة
           SizedBox(
-            width: 300,
-            height: 300,
+            width: 250,
+            height: 250,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 // الخلفية الرمادية
                 CircularProgressIndicator(
                   value: 1.0,
-                  strokeWidth: 22,
-                  backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                  strokeWidth: 15,
+                  backgroundColor: Colors.transparent,
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.grey.withValues(alpha: 0.1),
+                    Colors.grey.shade200,
                   ),
+                  strokeCap: StrokeCap.round,
                 ),
 
                 // الـ Progress الأزرق
                 CircularProgressIndicator(
                   value: percentage / 100,
-                  strokeWidth: 22,
+                  strokeWidth: 200,
                   backgroundColor: Colors.transparent,
                   valueColor: const AlwaysStoppedAnimation<Color>(
                     Color(0xFF2E5BFF),

@@ -26,11 +26,8 @@ class StudentRepository {
     String subjectId,
   ) async {
     try {
-      // TODO: لما الـ API يكون جاهز، فك التعليق ده
-      // final response = await http.get(
-      //   Uri.parse('$baseUrl/attendance/$subjectId'),
-      //   headers: {'Authorization': 'Bearer $token'},
-      // );
+      // TODO: Replace with real API call when backend is ready
+      // Mock data for now - replace with real API when ready
       //
       // if (response.statusCode == 200) {
       //   final List<dynamic> data = json.decode(response.body);
@@ -39,7 +36,7 @@ class StudentRepository {
       //   throw Exception('فشل في تحميل البيانات: ${response.statusCode}');
       // }
 
-      // دلوقتي: Mock Data للاختبار
+      // TODO: Replace mock data with real API response
       await Future.delayed(const Duration(seconds: 1)); // محاكاة الانتظار
 
       return [
@@ -81,7 +78,7 @@ class StudentRepository {
     try {
       await Future.delayed(const Duration(milliseconds: 800));
 
-      // Mock Data - نفس اللي في الـ Figma
+      // TODO: Replace mock data with real API response from backend
       return [
         SubjectAttendance(
           subjectId: 'phys101',
@@ -126,6 +123,7 @@ class StudentRepository {
 
       final now = DateTime.now();
 
+      // TODO: Replace mock schedule data with real API response
       return [
         ScheduleItem(
           id: '1',
@@ -171,6 +169,7 @@ class StudentRepository {
     try {
       await Future.delayed(const Duration(milliseconds: 600));
 
+      // TODO: Replace mock statistics with real API response
       return {
         'overall_percentage': 94.2,
         'total_lectures': 150,

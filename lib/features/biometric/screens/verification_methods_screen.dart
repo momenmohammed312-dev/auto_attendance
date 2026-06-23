@@ -7,19 +7,8 @@ import 'package:flutter/material.dart';
 ///
 /// Supported Methods:
 /// - Fingerprint (primary method)
-/// - Face ID / Face Recognition
+/// - Face ID / Face Recognition (requires server enrollment)
 /// - Device PIN / Pattern as fallback
-///
-/// This screen appears when:
-/// 1. User has completed biometric enrollment
-/// 2. Device supports multiple biometric types
-/// 3. User wants to change their preferred method
-///
-/// Features:
-/// - Visual cards for each available method
-/// - Checkmark for currently selected method
-/// - Security info for each method
-/// - Test button to verify selected method works
 ///
 /// Navigation:
 /// - Called from: Settings or Dashboard (when tapping Attend)
@@ -33,15 +22,9 @@ class VerificationMethodsScreen extends StatefulWidget {
 }
 
 class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
-  /// Currently selected verification method
-  /// 'fingerprint', 'face', or 'pin'
   String _selectedMethod = 'fingerprint';
-
-  /// Loading state when testing a method
   bool _isTesting = false;
 
-  /// Available methods on this device (mock data)
-  /// In real implementation, this would be detected by local_auth
   final List<Map<String, dynamic>> _availableMethods = [
     {
       'id': 'fingerprint',
@@ -69,39 +52,28 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
     },
   ];
 
-  /// Selects a verification method
-  ///
-  /// Updates the UI to show the selected method
-  /// and stores the preference for future use.
-  ///
-  /// Parameters:
-  /// - [methodId]: The ID of the method to select ('fingerprint', 'face', 'pin')
+  @override
+  void initState() {
+    super.initState();
+  }
+
   void _selectMethod(String methodId) {
     setState(() {
       _selectedMethod = methodId;
     });
-    // Haptic feedback to confirm selection
-    // TODO: Add HapticFeedback.lightImpact()
   }
 
-  /// Tests the selected verification method
-  ///
-  /// Opens the actual biometric prompt to verify
-  /// the selected method works correctly.
-  /// Shows success/error feedback to user.
   Future<void> _testMethod() async {
     setState(() {
       _isTesting = true;
     });
 
-    // Simulate biometric test
     await Future.delayed(const Duration(seconds: 1));
 
     setState(() {
       _isTesting = false;
     });
 
-    // Show test result
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -113,18 +85,12 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
     }
   }
 
-  /// Continues to identity verification with selected method
-  ///
-  /// Passes the selected method to the verification screen
-  /// and navigates forward in the attendance flow.
   void _continueToVerification() {
-    // TODO: Pass selectedMethod to IdentityVerificationScreen
     Navigator.of(
       context,
     ).pushNamed('/verify', arguments: {'method': _selectedMethod});
   }
 
-  /// Gets the display name of the currently selected method
   String _getSelectedMethodName() {
     final method = _availableMethods.firstWhere(
       (m) => m['id'] == _selectedMethod,
@@ -133,7 +99,6 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
     return method['name'];
   }
 
-  /// Gets the security level color based on level string
   Color _getSecurityColor(String level) {
     switch (level) {
       case 'High':
@@ -168,7 +133,6 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header text
               const Text(
                 'How would you like to verify?',
                 style: TextStyle(
@@ -180,7 +144,6 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
 
               const SizedBox(height: 8),
 
-              // Subtitle
               const Text(
                 'Select your preferred authentication method. You can change this anytime in settings.',
                 style: TextStyle(
@@ -192,12 +155,10 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
 
               const SizedBox(height: 32),
 
-              // Method cards
               ..._availableMethods.map((method) => _buildMethodCard(method)),
 
               const Spacer(),
 
-              // Test button
               if (_isTesting)
                 const Center(
                   child: CircularProgressIndicator(
@@ -218,7 +179,6 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
 
               const SizedBox(height: 16),
 
-              // Continue button
               SizedBox(
                 width: double.infinity,
                 height: 56,
@@ -248,17 +208,6 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
     );
   }
 
-  /// Builds a method selection card
-  ///
-  /// Displays a clickable card with:
-  /// - Method icon
-  /// - Method name
-  /// - Description
-  /// - Security level badge
-  /// - Selection indicator (checkmark or radio button)
-  ///
-  /// Parameters:
-  /// - [method]: Map containing method details (id, name, icon, description, etc.)
   Widget _buildMethodCard(Map<String, dynamic> method) {
     final isSelected = _selectedMethod == method['id'];
     final isAvailable = method['isAvailable'] as bool;
@@ -291,7 +240,6 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
           ),
           child: Row(
             children: [
-              // Method icon
               Container(
                 width: 56,
                 height: 56,
@@ -310,7 +258,6 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
 
               const SizedBox(width: 16),
 
-              // Method details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -326,7 +273,6 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Security level badge
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -372,7 +318,6 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
                 ),
               ),
 
-              // Selection indicator
               Container(
                 width: 24,
                 height: 24,

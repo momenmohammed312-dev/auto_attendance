@@ -28,6 +28,7 @@ class SecureStorageService {
   // Keys اللي هنستخدمها
   static const String _userKey = 'user_data';
   static const String _tokenKey = 'jwt_token';
+  static const String _refreshTokenKey = 'refresh_token';
   static const String _rememberMeKey = 'remember_me';
 
   /// ==================== USER DATA ====================
@@ -72,6 +73,23 @@ class SecureStorageService {
   /// Delete token
   Future<void> deleteToken() async {
     await _storage.delete(key: _tokenKey);
+  }
+
+  /// ==================== REFRESH TOKEN ====================
+
+  /// Save refresh token
+  Future<void> saveRefreshToken(String token) async {
+    await _storage.write(key: _refreshTokenKey, value: token);
+  }
+
+  /// Get refresh token
+  Future<String?> getRefreshToken() async {
+    return await _storage.read(key: _refreshTokenKey);
+  }
+
+  /// Delete refresh token
+  Future<void> deleteRefreshToken() async {
+    await _storage.delete(key: _refreshTokenKey);
   }
 
   /// ==================== REMEMBER ME ====================

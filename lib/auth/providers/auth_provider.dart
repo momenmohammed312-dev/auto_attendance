@@ -32,26 +32,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Login method with optional Remember Me functionality
   ///
   /// Parameters:
-  /// - [email]: User's email address
-  /// - [password]: User's password
+  /// - [name]: Student name
+  /// - [studentId]: Student ID number
   /// - [role]: User role ('student' or 'doctor')
   /// - [rememberMe]: If true, saves user data to secure storage for auto-login
   Future<void> login(
-    String email,
-    String password,
+    String name,
+    String studentId,
     String role, {
     bool rememberMe = false,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // Call API to authenticate user
       final user = await _repository.login(
-        LoginRequest(email: email, password: password, role: role),
+        LoginRequest(name: name, studentId: studentId, role: role),
       );
 
-      // Save to secure storage if remember me is checked
-      // This allows auto-login on next app launch
       if (rememberMe) {
         await secureStorage.saveUser(user.toJson());
         await secureStorage.setRememberMe(true);
@@ -90,4 +87,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(ref.watch(authRepositoryProvider));
+});
+
+/// Convenient provider to get the current user's ID
+final currentUserIdProvider = Provider<String?>((ref) {
+  return ref.watch(authProvider).user?.id;
+});
+
+/// Convenient provider to get the current user's role
+final currentUserRoleProvider = Provider<String?>((ref) {
+  return ref.watch(authProvider).user?.role;
 });

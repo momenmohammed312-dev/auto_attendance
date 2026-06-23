@@ -1,52 +1,40 @@
-import 'package:flutter/material.dart';
+import 'dart:typed_data';
 
-/// Biometric Enrollment Screen
-///
-/// This screen is displayed the first time a user sets up biometric authentication.
-/// It guides the user through the process of registering their fingerprint
-/// or face ID for quick attendance marking.
-///
-/// This is a ONE-TIME setup screen that appears only during initial app configuration.
-/// After successful enrollment, users will be taken directly to the verification
-/// screen when marking attendance.
-///
-/// Features:
-/// - Animated biometric icon to guide user
-/// - Step-by-step enrollment instructions
-/// - Success/Error state handling
-/// - Skip option for users who prefer manual attendance
-///
-/// Navigation:
-/// - Called from: Dashboard (first time only)
-/// - Goes to: IdentityVerificationScreen (after enrollment)
-/// - Can skip to: Dashboard (if user declines)
-class BiometricEnrollmentScreen extends StatefulWidget {
+import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../auth/providers/auth_provider.dart';
+import '../data/face_recognition_service.dart';
+
+class BiometricEnrollmentScreen extends ConsumerStatefulWidget {
   const BiometricEnrollmentScreen({super.key});
 
   @override
-  State<BiometricEnrollmentScreen> createState() =>
+  ConsumerState<BiometricEnrollmentScreen> createState() =>
       _BiometricEnrollmentScreenState();
 }
 
-class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
+class _BiometricEnrollmentScreenState
+    extends ConsumerState<BiometricEnrollmentScreen>
     with SingleTickerProviderStateMixin {
-  /// Animation controller for the biometric icon pulse effect
   late AnimationController _pulseController;
 
-  /// Current step in the enrollment process
-  /// 0 = Introduction, 1 = Scanning, 2 = Success
-  int _currentStep = 0;
-
-  /// Loading state during biometric check
+  int _currentStep = 0; // 0=intro, 1=camera, 2=processing, 3=success
   bool _isLoading = false;
-
-  /// Error message if enrollment fails
   String? _errorMessage;
+
+  // Camera
+  CameraController? _cameraController;
+  bool _cameraReady = false;
+  bool _startingCamera = false;
+
+  // Services
+  final FaceRecognitionService _faceService = FaceRecognitionService();
 
   @override
   void initState() {
     super.initState();
-    // Initialize pulse animation for biometric icon
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -55,53 +43,131 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
 
   @override
   void dispose() {
-    // Clean up animation controller to prevent memory leaks
     _pulseController.dispose();
+    final controller = _cameraController;
+    _cameraController = null;
+    _cameraReady = false;
+    if (controller != null) {
+      controller.dispose().catchError((_) {});
+    }
     super.dispose();
   }
 
-  /// Starts the biometric enrollment process
-  ///
-  /// This method:
-  /// 1. Checks if device supports biometric authentication
-  /// 2. Requests permission to use biometrics
-  /// 3. Guides user through fingerprint/face scan
-  /// 4. Stores enrollment status in local storage
-  ///
-  /// Called when user taps the "Start Setup" button
-  Future<void> _startEnrollment() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-      _currentStep = 1; // Move to scanning step
-    });
+  Future<bool> _initCamera() async {
+    if (_cameraReady) return true;
+    if (_startingCamera) return false;
+    _startingCamera = true;
 
-    // Simulate biometric check (will be replaced with local_auth)
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        _startingCamera = false;
+        return false;
+      }
 
-    // Mock success - in real implementation, this uses local_auth package
-    setState(() {
-      _isLoading = false;
-      _currentStep = 2; // Move to success step
-    });
+      CameraDescription? front;
+      for (final cam in cameras) {
+        if (cam.lensDirection == CameraLensDirection.front) {
+          front = cam;
+          break;
+        }
+      }
+
+      final controller = CameraController(
+        front ?? cameras.first,
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
+
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        _startingCamera = false;
+        return false;
+      }
+
+      await _cameraController?.dispose();
+      _cameraController = controller;
+      _cameraReady = true;
+      _startingCamera = false;
+      return true;
+    } catch (e) {
+      debugPrint('Enrollment camera error: $e');
+      _startingCamera = false;
+      return false;
+    }
   }
 
-  /// Skips biometric enrollment and returns to dashboard
-  ///
-  /// Called when user taps "Skip for now" button
-  /// Stores preference to not use biometric attendance
+  Future<void> _startEnrollment() async {
+    setState(() {
+      _currentStep = 1;
+      _errorMessage = null;
+    });
+
+    final ready = await _initCamera();
+    if (!ready) {
+      setState(() {
+        _errorMessage = 'Camera is not available.';
+        _currentStep = 0;
+      });
+    }
+  }
+
+  Future<void> _captureAndEnroll() async {
+    if (_cameraController == null || !_cameraReady) {
+      setState(() {
+        _errorMessage = 'Camera is not ready.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _currentStep = 2;
+      _errorMessage = null;
+    });
+
+    try {
+      // Capture image
+      final XFile capturedImage = await _cameraController!.takePicture();
+      final Uint8List imageBytes = await capturedImage.readAsBytes();
+
+      // Send to ML API for face registration
+      final userId = ref.read(currentUserIdProvider) ?? '1';
+      final result = await _faceService.registerFace(
+        employeeId: userId,
+        imageBytes: imageBytes,
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result.success) {
+        setState(() {
+          _currentStep = 3;
+        });
+      } else {
+        setState(() {
+          _errorMessage = result.errorMessage;
+          _currentStep = 1;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Enrollment failed. Please try again.';
+        _currentStep = 1;
+      });
+    }
+  }
+
   void _skipEnrollment() {
-    // TODO: Store skip preference in local storage
     Navigator.of(context).pop();
   }
 
-  /// Completes enrollment and returns to dashboard
-  ///
-  /// Called after successful biometric registration
-  /// Navigates back to dashboard with enrollment complete status
   void _completeEnrollment() {
-    // TODO: Mark enrollment as complete in local storage
-    Navigator.of(context).pop(true); // Return success result
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -128,37 +194,25 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
     );
   }
 
-  /// Builds the main content based on current enrollment step
-  ///
-  /// Returns different UI for:
-  /// - Step 0: Introduction with setup button
-  /// - Step 1: Scanning animation with loading indicator
-  /// - Step 2: Success confirmation
   Widget _buildContent() {
     switch (_currentStep) {
       case 0:
         return _buildIntroductionStep();
       case 1:
-        return _buildScanningStep();
+        return _buildCameraStep();
       case 2:
+        return _buildProcessingStep();
+      case 3:
         return _buildSuccessStep();
       default:
         return _buildIntroductionStep();
     }
   }
 
-  /// Builds the introduction step UI
-  ///
-  /// Displays:
-  /// - Animated biometric icon with pulse effect
-  /// - Title and description text
-  /// - Benefits list (quick, secure, convenient)
-  /// - Start Setup and Skip buttons
   Widget _buildIntroductionStep() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Animated biometric icon with pulse effect
         AnimatedBuilder(
           animation: _pulseController,
           builder: (context, child) {
@@ -172,7 +226,7 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.fingerprint,
+                  Icons.face,
                   size: 60,
                   color: Color(0xFF2E5BFF),
                 ),
@@ -183,9 +237,8 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
 
         const SizedBox(height: 40),
 
-        // Title text
         const Text(
-          'Set Up Biometric Attendance',
+          'Set Up Face Recognition',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -196,29 +249,22 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
 
         const SizedBox(height: 16),
 
-        // Description text
         const Text(
-          'Use your fingerprint or face ID to quickly mark your attendance. No more manual check-ins!',
+          'Register your face to quickly mark attendance. The camera will capture your face and send it securely to our server.',
           style: TextStyle(fontSize: 16, color: Colors.black54, height: 1.5),
           textAlign: TextAlign.center,
         ),
 
         const SizedBox(height: 40),
 
-        // Benefits list
         _buildBenefitItem(Icons.speed, 'Quick', 'Mark attendance in seconds'),
         const SizedBox(height: 16),
-        _buildBenefitItem(
-          Icons.security,
-          'Secure',
-          'Your biometric data stays on device',
-        ),
+        _buildBenefitItem(Icons.security, 'Secure', 'Face data is encrypted on server'),
         const SizedBox(height: 16),
-        _buildBenefitItem(Icons.touch_app, 'Convenient', 'No passwords needed'),
+        _buildBenefitItem(Icons.face, 'Accurate', 'AI-powered face matching'),
 
         const Spacer(),
 
-        // Error message display
         if (_errorMessage != null) ...[
           Text(
             _errorMessage!,
@@ -228,7 +274,6 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
           const SizedBox(height: 16),
         ],
 
-        // Start Setup button
         SizedBox(
           width: double.infinity,
           height: 56,
@@ -251,7 +296,6 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
 
         const SizedBox(height: 16),
 
-        // Skip button
         TextButton(
           onPressed: _skipEnrollment,
           child: const Text(
@@ -263,12 +307,6 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
     );
   }
 
-  /// Builds a single benefit item with icon and text
-  ///
-  /// Parameters:
-  /// - [icon]: The icon to display
-  /// - [title]: Benefit title (e.g., "Quick")
-  /// - [description]: Benefit description
   Widget _buildBenefitItem(IconData icon, String title, String description) {
     return Row(
       children: [
@@ -305,22 +343,131 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
     );
   }
 
-  /// Builds the scanning step UI
-  ///
-  /// Displays animated scanning interface while
-  /// waiting for user to scan fingerprint/face
-  Widget _buildScanningStep() {
+  Widget _buildCameraStep() {
+    final controller = _cameraController;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Animated scanning indicator
+        // Camera preview
+        SizedBox(
+          width: 280,
+          height: 280,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  color: Colors.black12,
+                  child: (controller != null && _cameraReady)
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: CameraPreview(controller),
+                        )
+                      : const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF2E5BFF),
+                          ),
+                        ),
+                ),
+              ),
+
+              // Face guide overlay
+              IgnorePointer(
+                child: CustomPaint(
+                  size: const Size(280, 280),
+                  painter: _FaceGuidePainter(color: const Color(0xFF2E5BFF)),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        const Text(
+          'Position your face in the frame',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        const Text(
+          'Keep a neutral expression and look straight at the camera',
+          style: TextStyle(fontSize: 14, color: Colors.black54),
+          textAlign: TextAlign.center,
+        ),
+
+        if (_errorMessage != null) ...[
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage!,
+            style: const TextStyle(color: Colors.red, fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+        ],
+
+        const Spacer(),
+
+        // Capture button
+        if (_isLoading)
+          const CircularProgressIndicator(
+            color: Color(0xFF2E5BFF),
+          )
+        else
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton.icon(
+              onPressed: _captureAndEnroll,
+              icon: const Icon(Icons.camera_alt),
+              label: const Text(
+                'Capture & Register',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E5BFF),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+
+        const SizedBox(height: 16),
+
+        TextButton(
+          onPressed: () {
+            setState(() {
+              _currentStep = 0;
+            });
+          },
+          child: const Text(
+            'Cancel',
+            style: TextStyle(color: Colors.red, fontSize: 16),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProcessingStep() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
         SizedBox(
           width: 150,
           height: 150,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Outer rotating ring
               RotationTransition(
                 turns: _pulseController,
                 child: Container(
@@ -335,7 +482,6 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
                   ),
                 ),
               ),
-              // Inner biometric icon
               Container(
                 width: 100,
                 height: 100,
@@ -344,7 +490,7 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.fingerprint,
+                  Icons.face,
                   size: 50,
                   color: Color(0xFF2E5BFF),
                 ),
@@ -355,10 +501,9 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
 
         const SizedBox(height: 48),
 
-        // Scanning status text
-        Text(
-          _isLoading ? 'Place your finger...' : 'Processing...',
-          style: const TextStyle(
+        const Text(
+          'Registering your face...',
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black,
@@ -367,50 +512,26 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
 
         const SizedBox(height: 16),
 
-        // Loading indicator
-        if (_isLoading)
-          const LinearProgressIndicator(
-            backgroundColor: Colors.grey,
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E5BFF)),
-          ),
+        const LinearProgressIndicator(
+          backgroundColor: Colors.grey,
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E5BFF)),
+        ),
 
         const SizedBox(height: 32),
 
-        // Instructions
         const Text(
-          'Touch the fingerprint sensor on your device to complete enrollment',
+          'Sending encrypted face data to server.\nThis may take a few seconds.',
           style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.5),
           textAlign: TextAlign.center,
-        ),
-
-        const Spacer(),
-
-        // Cancel button
-        TextButton(
-          onPressed: () {
-            setState(() {
-              _currentStep = 0;
-              _isLoading = false;
-            });
-          },
-          child: const Text(
-            'Cancel',
-            style: TextStyle(color: Colors.red, fontSize: 16),
-          ),
         ),
       ],
     );
   }
 
-  /// Builds the success step UI
-  ///
-  /// Displayed after successful biometric enrollment
-  /// Shows confirmation and completes setup
   Widget _buildSuccessStep() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Success icon
         Container(
           width: 120,
           height: 120,
@@ -423,9 +544,8 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
 
         const SizedBox(height: 40),
 
-        // Success title
         const Text(
-          'Setup Complete!',
+          'Face Registered!',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -435,16 +555,14 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
 
         const SizedBox(height: 16),
 
-        // Success description
         const Text(
-          'Your biometric authentication is now ready. You can use it to quickly mark attendance for all your lectures.',
+          'Your face has been securely registered. You can now use face recognition to mark attendance.',
           style: TextStyle(fontSize: 16, color: Colors.black54, height: 1.5),
           textAlign: TextAlign.center,
         ),
 
         const Spacer(),
 
-        // Complete button
         SizedBox(
           width: double.infinity,
           height: 56,
@@ -466,5 +584,86 @@ class _BiometricEnrollmentScreenState extends State<BiometricEnrollmentScreen>
         ),
       ],
     );
+  }
+}
+
+class _FaceGuidePainter extends CustomPainter {
+  const _FaceGuidePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    const ovalWidth = 140.0;
+    final ovalHeight = ovalWidth * 1.3;
+
+    final rect = Rect.fromCenter(
+      center: center,
+      width: ovalWidth,
+      height: ovalHeight,
+    );
+
+    const cornerLen = 30.0;
+    const radius = 20.0;
+
+    // Top-left
+    canvas.drawLine(
+      Offset(rect.left + radius, rect.top),
+      Offset(rect.left + radius + cornerLen, rect.top),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(rect.left, rect.top + radius),
+      Offset(rect.left, rect.top + radius + cornerLen),
+      paint,
+    );
+
+    // Top-right
+    canvas.drawLine(
+      Offset(rect.right - radius, rect.top),
+      Offset(rect.right - radius - cornerLen, rect.top),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(rect.right, rect.top + radius),
+      Offset(rect.right, rect.top + radius + cornerLen),
+      paint,
+    );
+
+    // Bottom-left
+    canvas.drawLine(
+      Offset(rect.left, rect.bottom - radius),
+      Offset(rect.left, rect.bottom - radius - cornerLen),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(rect.left + radius, rect.bottom),
+      Offset(rect.left + radius + cornerLen, rect.bottom),
+      paint,
+    );
+
+    // Bottom-right
+    canvas.drawLine(
+      Offset(rect.right, rect.bottom - radius),
+      Offset(rect.right, rect.bottom - radius - cornerLen),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(rect.right - radius, rect.bottom),
+      Offset(rect.right - radius - cornerLen, rect.bottom),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _FaceGuidePainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }

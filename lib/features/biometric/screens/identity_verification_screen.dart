@@ -4,10 +4,12 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 // Biometric Service for real fingerprint/face authentication
 import '../../../core/biometric/biometric_service.dart';
+
+// Face recognition API service
+import '../data/face_recognition_service.dart';
 
 // Location services for campus verification
 import 'package:geolocator/geolocator.dart';
@@ -86,6 +88,10 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
   /// Selected biometric method (passed from previous screen)
   String _selectedMethod = 'fingerprint';
 
+  /// Student and session IDs from route arguments / auth state
+  String _studentId = '';
+  String _subjectName = 'Unknown Subject';
+
   /// Error message if verification fails
   String? _errorMessage;
 
@@ -96,22 +102,13 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
   CameraController? _cameraController;
   bool _cameraReady = false;
   bool _startingCamera = false;
-  bool _isStreaming = false;
-  bool _isProcessingFrame = false;
 
-  FaceDetector? _faceDetector;
+  // ==================== FACE RECOGNITION (API) ====================
+  final FaceRecognitionService _faceService = FaceRecognitionService();
 
-  static const List<_LivenessStep> _livenessSteps = <_LivenessStep>[
-    _LivenessStep.lookStraight,
-    _LivenessStep.turnRight,
-    _LivenessStep.turnLeft,
-    _LivenessStep.lookUp,
-    _LivenessStep.lookDown,
-    _LivenessStep.blink,
-  ];
-  int _currentLivenessIndex = 0;
-  DateTime? _lastStepCompletedAt;
-  bool _blinkArmed = false;
+  // ==================== LOCATION VERIFICATION ====================
+  Position? _currentPosition;
+  bool _locationReady = false;
 
   @override
   void initState() {
@@ -135,11 +132,12 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
       if (args != null) {
         setState(() {
           _selectedMethod = args['method'] ?? 'fingerprint';
+          _studentId = args['studentId']?.toString() ?? '';
+          _subjectName = args['subjectName']?.toString() ?? 'Unknown Subject';
         });
       }
 
       if (_selectedMethod == 'face') {
-        _setupFaceDetector();
         _ensureCamera();
       }
     });
@@ -147,28 +145,16 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
 
   @override
   void dispose() {
-    // Clean up animation controllers
     _pulseController.dispose();
     _rotationController.dispose();
 
-    // Avoid CameraX race conditions: stop stream first, then dispose controller.
     final controller = _cameraController;
     _cameraController = null;
     _cameraReady = false;
-    _isStreaming = false;
-    _isProcessingFrame = false;
-    Future.microtask(() async {
-      try {
-        await _stopImageStream(controller);
-      } catch (_) {}
-      try {
-        await controller?.dispose();
-      } catch (_) {}
-      try {
-        await _faceDetector?.close();
-      } catch (_) {}
-      _faceDetector = null;
-    });
+    _locationReady = false;
+    if (controller != null) {
+      controller.dispose().catchError((_) {});
+    }
 
     super.dispose();
   }
@@ -194,22 +180,52 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
     _rotationController.repeat();
 
     if (_selectedMethod == 'face') {
+      // Step 1: Ensure camera is ready
       final bool ready = await _ensureCamera();
       if (!ready) {
         _showError('Camera is not available. Please try again.');
         return;
       }
+      if (!mounted) return;
 
-      final bool livenessOk = await _runFaceLiveness();
-      if (!livenessOk) {
-        // _runFaceLiveness sets error if needed
+      // Step 2: Capture actual image from camera
+      setState(() {
+        _verificationState = 'scanning';
+      });
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+
+      XFile capturedImage;
+      try {
+        capturedImage = await _cameraController!.takePicture();
+      } catch (e) {
+        _showError('Failed to capture image. Please try again.');
         return;
       }
+      final Uint8List imageBytes = await capturedImage.readAsBytes();
+      if (!mounted) return;
 
-      // Step 2: Location verification
+      // Step 3: Send to ML API — attendance check-in (does detect + liveness + recognize in one call)
       setState(() {
         _verificationState = 'verifying_location';
       });
+
+      final checkInResult = await _faceService.attendanceCheckIn(
+        employeeId: _studentId,
+        imageBytes: imageBytes,
+      );
+      if (!mounted) return;
+
+      if (!checkInResult.success) {
+        _showError(checkInResult.errorMessage ?? 'Face not recognized. Attendance not recorded.');
+        return;
+      }
+
+      // Step 4: Location verification
+      await _initializeMap();
+      if (!mounted) return;
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
 
       final bool locationValid = await _verifyLocation();
       if (!locationValid) {
@@ -217,21 +233,24 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
         return;
       }
 
-      // Step 3: Record attendance
+      // Step 5: Record attendance
       setState(() {
         _verificationState = 'recording';
       });
 
       await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
 
       setState(() {
         _verificationState = 'success';
         _attendanceData = {
-          'subject': 'Artificial Intelligence',
-          'time': '9:30 AM',
+          'subject': _subjectName,
+          'time': _getCurrentTime(),
           'date': DateTime.now().toString(),
           'verified': true,
           'method': 'face',
+          'status': checkInResult.status,
+          'employee_id': checkInResult.employeeId,
         };
       });
 
@@ -244,6 +263,7 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
     // ============================================================================
     final bool deviceSupported = await biometricService.isDeviceSupported();
     debugPrint('IdentityVerify: deviceSupported=$deviceSupported');
+    if (!mounted) return;
 
     if (!deviceSupported) {
       _showError('Biometric authentication is not supported on this device.');
@@ -255,8 +275,9 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
     // ============================================================================
     final bool biometricSuccess = await biometricService.authenticate(
       reason: 'Verify your identity to mark attendance',
-      allowPinFallback: true, // Allow device PIN as backup
+      allowPinFallback: true,
     );
+    if (!mounted) return;
 
     debugPrint('IdentityVerify: biometricSuccess=$biometricSuccess');
 
@@ -265,14 +286,19 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
       return;
     }
 
-    // Step 2: Location verification
+    // Step 2: Location verification with map
     setState(() {
       _verificationState = 'verifying_location';
     });
 
-    await Future.delayed(const Duration(seconds: 1));
+    // Initialize map and get current location
+    await _initializeMap();
+    if (!mounted) return;
 
-    // Mock location check
+    // Wait a moment to show the map
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+
     final bool locationValid = await _verifyLocation();
 
     if (!locationValid) {
@@ -286,13 +312,14 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
     });
 
     await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
 
     // Success!
     setState(() {
       _verificationState = 'success';
       _attendanceData = {
-        'subject': 'Artificial Intelligence',
-        'time': '9:30 AM',
+        'subject': _subjectName,
+        'time': _getCurrentTime(),
         'date': DateTime.now().toString(),
         'verified': true,
       };
@@ -303,18 +330,6 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
   }
 
   // ==================== FACE LIVENESS HELPERS ====================
-  void _setupFaceDetector() {
-    _faceDetector ??= FaceDetector(
-      options: FaceDetectorOptions(
-        // More stable head pose + eye probabilities on many devices.
-        performanceMode: FaceDetectorMode.accurate,
-        enableClassification: true,
-        enableLandmarks: false,
-        enableContours: false,
-        enableTracking: true,
-      ),
-    );
-  }
 
   Future<bool> _ensureCamera() async {
     if (_cameraReady) return true;
@@ -339,10 +354,8 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
       final selectedCamera = front ?? cameras.first;
       final controller = CameraController(
         selectedCamera,
-        // Lower resolution tends to be more stable for image streaming.
-        ResolutionPreset.low,
+        ResolutionPreset.medium,
         enableAudio: false,
-        // Let plugin choose a stable default for this device.
         imageFormatGroup: ImageFormatGroup.unknown,
       );
 
@@ -369,210 +382,34 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
     }
   }
 
-  Future<bool> _runFaceLiveness() async {
-    _setupFaceDetector();
-    if (_cameraController == null || !_cameraReady || _faceDetector == null) {
-      _showError('Camera is not ready.');
-      return false;
-    }
-
-    _resetLiveness();
-
-    final completer = Completer<bool>();
-
+  /// Initializes the map and gets current location
+  Future<void> _initializeMap() async {
     try {
-      await _startImageStream(
-        onDone: (ok) {
-          if (!completer.isCompleted) {
-            completer.complete(ok);
-          }
-        },
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
       );
 
-      return await completer.future.timeout(
-        const Duration(seconds: 25),
-        onTimeout: () {
-          _stopImageStream();
-          _showError('Face verification timeout. Please try again.');
-          return false;
-        },
-      );
+      _currentPosition = position;
+
+      // Location verification complete
+      _locationReady = true;
+
+      setState(() {
+        _locationReady = true;
+      });
     } catch (e) {
-      debugPrint('Face liveness error: $e');
-      _stopImageStream();
-      _showError('Face verification failed. Please try again.');
-      return false;
-    }
-  }
-
-  void _resetLiveness() {
-    _currentLivenessIndex = 0;
-    _lastStepCompletedAt = null;
-    _blinkArmed = false;
-  }
-
-  Future<void> _startImageStream({
-    required void Function(bool ok) onDone,
-  }) async {
-    if (_isStreaming) return;
-    final controller = _cameraController;
-    final detector = _faceDetector;
-    if (controller == null || detector == null) return;
-
-    _isStreaming = true;
-
-    await controller.startImageStream((CameraImage image) async {
-      if (_isProcessingFrame) return;
-      _isProcessingFrame = true;
-
-      try {
-        final inputImage = _cameraImageToInputImage(
-          image,
-          controller.description.sensorOrientation,
-        );
-        if (inputImage == null) {
-          _isProcessingFrame = false;
-          return;
-        }
-
-        final faces = await detector.processImage(inputImage);
-        if (!mounted) return;
-
-        if (faces.isEmpty) {
-          _isProcessingFrame = false;
-          return;
-        }
-
-        faces.sort(
-          (a, b) => (b.boundingBox.width * b.boundingBox.height).compareTo(
-            a.boundingBox.width * a.boundingBox.height,
-          ),
-        );
-        final face = faces.first;
-
-        _updateLiveness(face, onDone);
-      } catch (e) {
-        debugPrint('Face frame error: $e');
-      } finally {
-        _isProcessingFrame = false;
-      }
-    });
-  }
-
-  Future<void> _stopImageStream([CameraController? controllerOverride]) async {
-    _isStreaming = false;
-    _isProcessingFrame = false;
-
-    final controller = controllerOverride ?? _cameraController;
-    if (controller != null && controller.value.isStreamingImages) {
-      await controller.stopImageStream();
-    }
-  }
-
-  InputImage? _cameraImageToInputImage(
-    CameraImage image,
-    int sensorOrientation,
-  ) {
-    final bytesBuilder = BytesBuilder(copy: false);
-    for (final Plane plane in image.planes) {
-      bytesBuilder.add(plane.bytes);
-    }
-    final bytes = bytesBuilder.toBytes();
-
-    final Size imageSize = Size(
-      image.width.toDouble(),
-      image.height.toDouble(),
-    );
-
-    final imageRotation = InputImageRotationValue.fromRawValue(
-      sensorOrientation,
-    );
-    if (imageRotation == null) return null;
-
-    final inputImageFormat = InputImageFormatValue.fromRawValue(
-      image.format.raw,
-    );
-    if (inputImageFormat == null) return null;
-
-    final inputImageData = InputImageMetadata(
-      size: imageSize,
-      rotation: imageRotation,
-      format: inputImageFormat,
-      bytesPerRow: image.planes.first.bytesPerRow,
-    );
-
-    return InputImage.fromBytes(bytes: bytes, metadata: inputImageData);
-  }
-
-  void _updateLiveness(Face face, void Function(bool ok) onDone) {
-    if (_currentLivenessIndex >= _livenessSteps.length) return;
-
-    final step = _livenessSteps[_currentLivenessIndex];
-    final now = DateTime.now();
-    if (_lastStepCompletedAt != null &&
-        now.difference(_lastStepCompletedAt!).inMilliseconds < 600) {
-      return;
-    }
-
-    final double? yaw = face.headEulerAngleY;
-    final double? pitch = face.headEulerAngleX;
-
-    bool ok = false;
-    switch (step) {
-      case _LivenessStep.lookStraight:
-        // Some devices report slightly noisy angles; keep this lenient.
-        ok =
-            (yaw != null &&
-            pitch != null &&
-            yaw.abs() < 14 &&
-            pitch.abs() < 14);
-        break;
-      case _LivenessStep.turnRight:
-        ok = (yaw != null && yaw > 16);
-        break;
-      case _LivenessStep.turnLeft:
-        ok = (yaw != null && yaw < -16);
-        break;
-      case _LivenessStep.lookUp:
-        ok = (pitch != null && pitch < -10);
-        break;
-      case _LivenessStep.lookDown:
-        ok = (pitch != null && pitch > 10);
-        break;
-      case _LivenessStep.blink:
-        final left = face.leftEyeOpenProbability;
-        final right = face.rightEyeOpenProbability;
-        if (left == null || right == null) {
-          ok = false;
-          break;
-        }
-        if (!_blinkArmed) {
-          _blinkArmed = left > 0.75 && right > 0.75;
-          ok = false;
-        } else {
-          ok = left < 0.25 && right < 0.25;
-        }
-        break;
-    }
-
-    if (!ok) return;
-
-    setState(() {
-      _currentLivenessIndex += 1;
-      _lastStepCompletedAt = DateTime.now();
-    });
-
-    if (_currentLivenessIndex >= _livenessSteps.length) {
-      _stopImageStream();
-      onDone(true);
+      debugPrint('Map initialization error: $e');
+      _showError('Unable to get location. Please check GPS settings.');
     }
   }
 
   /// Campus coordinates (Cairo University - Giza, Egypt)
   /// Replace with your actual campus location
-  static const double _campusLatitude = 30.0444; // خط العرض
-  static const double _campusLongitude = 31.2357; // خط الطول
-  static const double _campusRadiusMeters = 500.0; // نطاق 500 متر
+  static const double _campusLatitude = 30.0131; // خط العرض (Cairo University)
+  static const double _campusLongitude = 31.2089; // خط الطول (Cairo University)
+  static const double _campusRadiusMeters =
+      200.0; // 200 meters campus radius
 
   /// Verifies the student's location using GPS
   ///
@@ -610,11 +447,17 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
       }
 
       // ============================================================================
-      // STEP 3: Get current position
+      // STEP 3: Reuse position from _initializeMap or get new one
       // ============================================================================
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      Position position;
+      if (_currentPosition != null) {
+        position = _currentPosition!;
+      } else {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        _currentPosition = position;
+      }
 
       debugPrint(
         'Location: Current = ${position.latitude}, ${position.longitude}',
@@ -798,7 +641,9 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (_selectedMethod == 'face')
+        if (_verificationState == 'verifying_location')
+          _buildLocationMapCard()
+        else if (_selectedMethod == 'face')
           _buildFaceCameraCard()
         else
           // Animated biometric icon
@@ -954,6 +799,142 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
     );
   }
 
+  Widget _buildLocationMapCard() {
+    return Column(
+      children: [
+        SizedBox(
+          width: 320,
+          height: 320,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  child: _currentPosition != null
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.location_on,
+                                size: 80,
+                                color: Color(0xFF2E5BFF),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Location Verified',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2E5BFF),
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Within campus area',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                color: Color(0xFF2E5BFF),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Getting your location...',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                ),
+              ),
+
+              // Location verification overlay
+              if (_locationReady)
+                IgnorePointer(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          color: Color(0xFF2E5BFF),
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Verifying Location',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2E5BFF),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2E5BFF).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF2E5BFF)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.map_outlined,
+                color: Color(0xFF2E5BFF),
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'LOCATION VERIFICATION',
+                style: TextStyle(
+                  color: Color(0xFF2E5BFF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildFaceCameraCard() {
     final controller = _cameraController;
 
@@ -998,7 +979,7 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
               borderRadius: BorderRadius.circular(18),
             ),
             child: Text(
-              _livenessHint,
+              'Camera ready - verifying identity...',
               style: const TextStyle(fontSize: 12, color: Colors.black87),
             ),
           ),
@@ -1031,32 +1012,11 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
           return 'Keep your finger on the sensor...';
         }
       case 'verifying_location':
-        return 'Checking if you are on campus...';
+        return 'Showing your location and campus area on map...';
       case 'recording':
         return 'Saving your attendance record...';
       default:
         return '';
-    }
-  }
-
-  String get _livenessHint {
-    if (_currentLivenessIndex >= _livenessSteps.length) {
-      return 'Completed';
-    }
-
-    switch (_livenessSteps[_currentLivenessIndex]) {
-      case _LivenessStep.lookStraight:
-        return 'Look straight';
-      case _LivenessStep.turnRight:
-        return 'Turn your head to the right';
-      case _LivenessStep.turnLeft:
-        return 'Turn your head to the left';
-      case _LivenessStep.lookUp:
-        return 'Look up';
-      case _LivenessStep.lookDown:
-        return 'Look down';
-      case _LivenessStep.blink:
-        return 'Blink your eyes';
     }
   }
 
@@ -1102,7 +1062,7 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
           ),
           child: Column(
             children: [
-              _buildDetailRow(Icons.book, 'Subject', 'Artificial Intelligence'),
+              _buildDetailRow(Icons.book, 'Subject', _subjectName),
               const Divider(height: 24),
               _buildDetailRow(Icons.access_time, 'Time', _getCurrentTime()),
               const Divider(height: 24),
@@ -1269,15 +1229,6 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
     final period = now.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
   }
-}
-
-enum _LivenessStep {
-  lookStraight,
-  turnRight,
-  turnLeft,
-  lookUp,
-  lookDown,
-  blink,
 }
 
 class _CornerFramePainter extends CustomPainter {

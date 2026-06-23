@@ -24,6 +24,9 @@ import '../widgets/subject_card.dart';
 import '../../../shared/widgets/app_bottom_nav.dart';
 import '../../../shared/widgets/app_top_bar.dart';
 
+// Auth provider for user data
+import '../../../auth/providers/auth_provider.dart';
+
 // App router for navigation
 import '../../../router/app_router.dart';
 
@@ -89,6 +92,12 @@ class _StudentDashboardScreenState
     final schedule = ref.watch(todayScheduleProvider);
     final isLoading = ref.watch(studentLoadingProvider);
     final error = ref.watch(studentErrorProvider);
+    final authUser = ref.watch(authProvider).user;
+
+    // Calculate overall attendance from subjects
+    final totalLectures = subjects.fold<int>(0, (sum, s) => sum + s.totalLectures);
+    final attendedLectures = subjects.fold<int>(0, (sum, s) => sum + s.attendedLectures);
+    final attendancePercentage = totalLectures > 0 ? (attendedLectures / totalLectures * 100) : 0.0;
 
     return Scaffold(
       // Light grey background for modern look
@@ -96,7 +105,17 @@ class _StudentDashboardScreenState
 
       // Main scrollable content area
       body: SafeArea(
-        child: _buildBody(context, subjects, schedule, isLoading, error),
+        child: _buildBody(
+          context,
+          subjects,
+          schedule,
+          isLoading,
+          error,
+          userName: authUser?.name ?? 'Student',
+          attendancePercentage: attendancePercentage,
+          attendedLectures: attendedLectures,
+          totalLectures: totalLectures,
+        ),
       ),
 
       // Floating Action Button for quick biometric attendance
@@ -121,8 +140,12 @@ class _StudentDashboardScreenState
     List<SubjectAttendance> subjects,
     List<ScheduleItem> schedule,
     bool isLoading,
-    String? error,
-  ) {
+    String? error, {
+    String? userName,
+    double attendancePercentage = 0,
+    int attendedLectures = 0,
+    int totalLectures = 0,
+  }) {
     // Show loading spinner while fetching initial data
     if (isLoading && subjects.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -164,7 +187,7 @@ class _StudentDashboardScreenState
             // ==================== HEADER SECTION ====================
             // Top bar with avatar, greeting, SYNCED pill, and notification
             AppTopBar(
-              userName: 'Alex Rivers',
+              userName: userName ?? 'Student',
               onNotificationTap: _onNotificationTap,
               showStatusPill: true,
             ),
@@ -175,9 +198,90 @@ class _StudentDashboardScreenState
             // Circular chart showing overall attendance percentage
             Center(
               child: AttendanceCircleChart(
-                percentage: 88.0,
-                attendedLectures: 44,
-                totalLectures: 50,
+                percentage: attendancePercentage,
+                attendedLectures: attendedLectures,
+                totalLectures: totalLectures,
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            // ==================== EXCUSE REQUEST SECTION ====================
+            // Section for requesting excuses for absences
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha:0.1),
+                      spreadRadius: 1,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.help_outline,
+                          color: Colors.orange[700],
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Need an Excuse?',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Missed a lecture? Submit an excuse request with proper documentation.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _onRequestExcuseTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E5BFF),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.send, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Request Excuse',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -288,6 +392,13 @@ class _StudentDashboardScreenState
   void _onNotificationTap() {
     // TODO: Navigate to notifications screen
     debugPrint('Notification tapped');
+  }
+
+  /// Handles Request Excuse button tap.
+  ///
+  /// Navigates to the excuse request screen.
+  void _onRequestExcuseTap() {
+    Navigator.pushNamed(context, AppRoutes.excuseRequest);
   }
 
   /// Handles attendance FAB tap.

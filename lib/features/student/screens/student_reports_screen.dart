@@ -368,8 +368,7 @@ class StudentReportsScreen extends ConsumerWidget {
   /// [context] - Build context for theme access
   /// Returns styled card with legend and bar chart
   Widget _buildMonthlyTrendSection(BuildContext context) {
-    // Mock monthly data - present vs absent lectures
-    // TODO: Replace with real data from API
+    // TODO: Replace mock monthly data with real API response
     final monthlyData = [
       {'month': 'Jan', 'present': 18, 'absent': 2},
       {'month': 'Feb', 'present': 20, 'absent': 0},
@@ -611,7 +610,7 @@ class StudentReportsScreen extends ConsumerWidget {
   /// [context] - Build context for UI rendering
   /// Returns styled section with timeline-style alert items
   Widget _buildAlertsSection(BuildContext context) {
-    // Mock alerts data - TODO: Replace with real notifications API
+    // TODO: Replace mock alerts data with real notifications API
     final alerts = [
       {
         'type': 'upcoming',

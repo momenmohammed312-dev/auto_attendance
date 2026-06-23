@@ -6,7 +6,7 @@ import '../data/student_repository.dart';
 
 /// Immutable state class for Student feature module.
 ///
-/// Contains all the data needed for the student dashboard, schedule,
+/// Contains all of the data needed for student dashboard, schedule,
 /// and reports screens. Also tracks loading and error states.
 class StudentState {
   final List<SubjectAttendance> subjectAttendance;
@@ -15,6 +15,7 @@ class StudentState {
   final Map<String, dynamic>? statistics;
   final bool isLoading;
   final String? error;
+  final String? selectedSubjectId;
 
   const StudentState({
     this.subjectAttendance = const [],
@@ -23,6 +24,7 @@ class StudentState {
     this.statistics,
     this.isLoading = false,
     this.error,
+    this.selectedSubjectId,
   });
 
   /// Creates a copy of this state with the given fields replaced.
@@ -115,8 +117,8 @@ class StudentNotifier extends StateNotifier<StudentState> {
   /// [subjectId] The ID of the subject to refresh.
   Future<void> refreshSubject(String subjectId) async {
     try {
-      final records = await _repository.getAttendanceForSubject(subjectId);
       // TODO: Update specific subject in state
+      await _repository.getAttendanceForSubject(subjectId);
     } catch (e) {
       state = state.copyWith(error: 'فشل التحديث: $e');
     }

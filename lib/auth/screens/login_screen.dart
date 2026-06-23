@@ -1,9 +1,9 @@
-import 'package:auto_attendace/core/biometric/biometric_service.dart'; // Biometric authentication service
-import 'package:auto_attendace/core/storage/secure_storage.dart'; // Secure storage for saved user data
+import 'package:auto_attendace/core/biometric/biometric_service.dart';
+import 'package:auto_attendace/core/storage/secure_storage.dart';
 import 'package:auto_attendace/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/auth_provider.dart'; // Import auth provider for Riverpod state management
+import '../providers/auth_provider.dart';
 
 /// LoginScreen - Main entry point for user authentication
 /// Uses ConsumerStatefulWidget to access Riverpod's ref and maintain local state
@@ -17,15 +17,12 @@ class LoginScreen extends ConsumerStatefulWidget {
 /// _LoginScreenState - State class for LoginScreen
 /// Manages text controllers, selected role, and handles login logic
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  // Text controllers for email and password input fields
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  // Text controllers for name and student ID input fields
+  final _nameController = TextEditingController();
+  final _studentIdController = TextEditingController();
 
   // Currently selected role: 'Student' or 'Doctor'
   String _selectedRole = 'Student';
-
-  // Controls password visibility (show/hide)
-  bool _isPasswordVisible = false;
 
   // Remember me checkbox state
   bool _rememberMe = false;
@@ -58,9 +55,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
-    // Clean up controllers when widget is disposed to prevent memory leaks
-    _emailController.dispose();
-    _passwordController.dispose();
+    _nameController.dispose();
+    _studentIdController.dispose();
     super.dispose();
   }
 
@@ -77,6 +73,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ).showSnackBar(SnackBar(content: Text(authState.error!)));
       });
       _lastShownError = authState.error;
+    } else if (authState.error == null && _lastShownError != null) {
+      _lastShownError = null;
     }
 
     // Navigate to dashboard if user is logged in
@@ -130,7 +128,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -205,7 +203,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                     ),
                   ]
@@ -226,17 +224,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  /// Builds the login form with email, password, forgot password, and login button
-  /// [isLoading] - disables inputs and shows spinner when true
+  /// Builds the login form with name, student ID, remember me, and login button
   Widget _buildLoginForm(bool isLoading) {
     return Column(
       children: [
-        // Email Input Field
+        // Name Input Field
         TextFormField(
-          controller: _emailController,
+          controller: _nameController,
           decoration: InputDecoration(
-            hintText: 'University Email',
-            prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
+            hintText: 'Full Name',
+            prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
             border: OutlineInputBorder(
@@ -245,34 +242,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             contentPadding: const EdgeInsets.symmetric(vertical: 16),
           ),
-          keyboardType: TextInputType.emailAddress,
-          enabled: !isLoading, // Disable when loading
+          keyboardType: TextInputType.name,
+          enabled: !isLoading,
         ),
 
-        // Password Input Field with visibility toggle
+        const SizedBox(height: 12),
+
+        // Student ID Input Field
         TextFormField(
-          controller: _passwordController,
-          obscureText: !_isPasswordVisible, // Toggle visibility based on state
+          controller: _studentIdController,
           decoration: InputDecoration(
-            hintText: 'Password',
-            prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
-            // Eye icon button to toggle password visibility
-            suffixIcon: IconButton(
-              icon: Icon(
-                _isPasswordVisible
-                    ? Icons
-                          .visibility // Eye open when visible
-                    : Icons.visibility_off, // Eye closed when hidden
-                color: Colors.grey,
-              ),
-              onPressed: isLoading
-                  ? null // Disable when loading
-                  : () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible; // Toggle
-                      });
-                    },
-            ),
+            hintText: 'Student ID',
+            prefixIcon: const Icon(Icons.badge_outlined, color: Colors.grey),
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
             border: OutlineInputBorder(
@@ -281,7 +262,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             contentPadding: const EdgeInsets.symmetric(vertical: 16),
           ),
-          enabled: !isLoading, // Disable when loading
+          keyboardType: TextInputType.number,
+          enabled: !isLoading,
         ),
 
         const SizedBox(height: 12),
@@ -392,31 +374,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   /// Handles login button press
-  /// Validates inputs and calls auth provider login method
   Future<void> _handleLogin() async {
-    // Get and trim input values
-    final email = _emailController.text.trim(); // .trim() needs ()
-    final password = _passwordController.text;
-    final role = _selectedRole.toLowerCase(); // 'student' or 'doctor'
+    final name = _nameController.text.trim();
+    final studentId = _studentIdController.text.trim();
+    final role = _selectedRole.toLowerCase();
 
-    // Validate inputs are not empty
-    if (email.isEmpty || password.isEmpty) {
+    if (name.isEmpty || studentId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
 
-    // Call login method from auth provider with Remember Me preference.
-    // We `await` here so that if login succeeds and Remember Me is enabled,
-    // the user data is already saved into secure storage before we re-check it.
     await ref
         .read(authProvider.notifier)
-        .login(email, password, role, rememberMe: _rememberMe);
+        .login(name, studentId, role, rememberMe: _rememberMe);
 
-    // UX improvement:
-    // If the user enabled Remember Me, update `_hasSavedUser` immediately so
-    // the biometric login button becomes visible without restarting the app.
     if (_rememberMe) {
       await _checkSavedUser();
     }
@@ -470,7 +443,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Authentication failed. Please use email and password.',
+              'Authentication failed. Please login manually.',
             ),
             backgroundColor: Colors.red,
           ),
@@ -490,7 +463,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'No saved user found. Please login with email and password.',
+              'No saved user found. Please login manually.',
             ),
             backgroundColor: Colors.red,
           ),

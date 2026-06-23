@@ -23,7 +23,7 @@ class SubjectCard extends StatelessWidget {
   /// Example: "#2E5BFF" -> Color(0xFF2E5BFF)
   Color get _barColor {
     return Color(
-      int.parse(colorHex.replaceFirst('#', ''), radix: 16) + 0xFF000000,
+      (int.tryParse(colorHex.replaceFirst('#', ''), radix: 16) ?? 0xFF9E9E9E) + 0xFF000000,
     );
   }
 
