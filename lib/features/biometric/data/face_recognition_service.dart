@@ -71,8 +71,40 @@ class AttendanceCheckInResult {
 
 class FaceRecognitionService {
   final ApiClient _client;
+  static const int _maxRetries = 2;
+  static const Duration _retryDelay = Duration(seconds: 3);
 
   FaceRecognitionService({ApiClient? client}) : _client = client ?? ApiClient();
+
+  /// Check ML API health before making calls.
+  /// Returns true if server is reachable.
+  Future<bool> ensureServerReady() async {
+    for (int attempt = 0; attempt <= _maxRetries; attempt++) {
+      if (await checkHealth()) return true;
+      if (attempt < _maxRetries) {
+        await Future.delayed(_retryDelay);
+      }
+    }
+    return false;
+  }
+
+  /// Wraps an API call with retry logic for 404/5xx errors.
+  Future<T> _withRetry<T>(Future<T> Function() apiCall) async {
+    for (int attempt = 0; attempt <= _maxRetries; attempt++) {
+      try {
+        return await apiCall();
+      } on DioException catch (e) {
+        final isRetryable = (e.response?.statusCode == 404 ||
+            (e.response?.statusCode ?? 0) >= 500);
+        if (isRetryable && attempt < _maxRetries) {
+          await Future.delayed(_retryDelay * (attempt + 1));
+          continue;
+        }
+        rethrow;
+      }
+    }
+    throw Exception('Max retries exceeded');
+  }
 
   /// Register a face for an employee.
   ///
@@ -82,15 +114,22 @@ class FaceRecognitionService {
     required Uint8List imageBytes,
     String fileName = 'face_register.jpg',
   }) async {
+    if (employeeId.isEmpty) {
+      return const FaceEnrollResult(
+        success: false,
+        errorMessage: 'Employee ID is required. Please login again.',
+      );
+    }
+
     try {
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(imageBytes, filename: fileName),
       });
 
-      final response = await _client.mlUpload(
+      final response = await _withRetry(() => _client.mlUpload(
         ApiEndpoints.mlRegisterFaceById(employeeId),
         formData: formData,
-      );
+      ));
 
       final data = response.data;
       if (data is Map<String, dynamic>) {
@@ -121,15 +160,22 @@ class FaceRecognitionService {
     required Uint8List imageBytes,
     String fileName = 'checkin.jpg',
   }) async {
+    if (employeeId.isEmpty) {
+      return const AttendanceCheckInResult(
+        success: false,
+        errorMessage: 'Student ID is required. Please login again.',
+      );
+    }
+
     try {
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(imageBytes, filename: fileName),
       });
 
-      final response = await _client.mlUpload(
+      final response = await _withRetry(() => _client.mlUpload(
         ApiEndpoints.mlAttendanceCheckInById(employeeId),
         formData: formData,
-      );
+      ));
 
       final data = response.data;
       if (data is Map<String, dynamic>) {
@@ -165,10 +211,10 @@ class FaceRecognitionService {
         'file': MultipartFile.fromBytes(imageBytes, filename: fileName),
       });
 
-      final response = await _client.mlUpload(
+      final response = await _withRetry(() => _client.mlUpload(
         ApiEndpoints.mlRecognizeFace,
         formData: formData,
-      );
+      ));
 
       final data = response.data;
       if (data is Map<String, dynamic>) {
@@ -201,10 +247,10 @@ class FaceRecognitionService {
         'file': MultipartFile.fromBytes(imageBytes, filename: fileName),
       });
 
-      final response = await _client.mlUpload(
+      final response = await _withRetry(() => _client.mlUpload(
         ApiEndpoints.mlLivenessCheck,
         formData: formData,
-      );
+      ));
 
       final data = response.data;
       if (data is Map<String, dynamic>) {
@@ -236,10 +282,10 @@ class FaceRecognitionService {
         'file': MultipartFile.fromBytes(imageBytes, filename: fileName),
       });
 
-      final response = await _client.mlUpload(
+      final response = await _withRetry(() => _client.mlUpload(
         ApiEndpoints.mlDetectFace,
         formData: formData,
-      );
+      ));
 
       final data = response.data;
       if (data is Map<String, dynamic>) {

@@ -416,11 +416,15 @@ class _StudentDashboardScreenState
   /// to VerificationMethodsScreen instead.
   void _onAttendButtonTap() async {
     // Navigate to biometric verification screen
-    // Pass default method (fingerprint) as argument
+    // Pass method and studentId from auth provider
+    final authUser = ref.read(authProvider).user;
     final result = await Navigator.pushNamed(
       context,
       AppRoutes.identityVerification,
-      arguments: {'method': 'face'},
+      arguments: {
+        'method': 'face',
+        'studentId': authUser?.id ?? '',
+      },
     );
 
     // Handle verification result

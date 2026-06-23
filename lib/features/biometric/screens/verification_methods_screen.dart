@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/providers/auth_provider.dart';
 
 /// Verification Methods Screen
 ///
@@ -13,15 +15,15 @@ import 'package:flutter/material.dart';
 /// Navigation:
 /// - Called from: Settings or Dashboard (when tapping Attend)
 /// - Goes to: IdentityVerificationScreen (with selected method)
-class VerificationMethodsScreen extends StatefulWidget {
+class VerificationMethodsScreen extends ConsumerStatefulWidget {
   const VerificationMethodsScreen({super.key});
 
   @override
-  State<VerificationMethodsScreen> createState() =>
+  ConsumerState<VerificationMethodsScreen> createState() =>
       _VerificationMethodsScreenState();
 }
 
-class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
+class _VerificationMethodsScreenState extends ConsumerState<VerificationMethodsScreen> {
   String _selectedMethod = 'fingerprint';
   bool _isTesting = false;
 
@@ -86,9 +88,14 @@ class _VerificationMethodsScreenState extends State<VerificationMethodsScreen> {
   }
 
   void _continueToVerification() {
-    Navigator.of(
-      context,
-    ).pushNamed('/verify', arguments: {'method': _selectedMethod});
+    final authUserId = ref.read(currentUserIdProvider) ?? '';
+    Navigator.of(context).pushNamed(
+      '/verify',
+      arguments: {
+        'method': _selectedMethod,
+        'studentId': authUserId,
+      },
+    );
   }
 
   String _getSelectedMethodName() {

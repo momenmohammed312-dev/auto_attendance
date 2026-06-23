@@ -4,9 +4,13 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Biometric Service for real fingerprint/face authentication
 import '../../../core/biometric/biometric_service.dart';
+
+// Auth provider for current user ID
+import '../../../auth/providers/auth_provider.dart';
 
 // Face recognition API service
 import '../data/face_recognition_service.dart';
@@ -65,15 +69,15 @@ import 'package:geolocator/geolocator.dart';
 /// - Called from: Dashboard (Attend button) or VerificationMethodsScreen
 /// - Goes to: Dashboard (after success)
 /// - Arguments: {method: 'fingerprint'|'face'|'pin'}
-class IdentityVerificationScreen extends StatefulWidget {
+class IdentityVerificationScreen extends ConsumerStatefulWidget {
   const IdentityVerificationScreen({super.key});
 
   @override
-  State<IdentityVerificationScreen> createState() =>
+  ConsumerState<IdentityVerificationScreen> createState() =>
       _IdentityVerificationScreenState();
 }
 
-class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
+class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificationScreen>
     with TickerProviderStateMixin {
   /// Animation controller for pulse effect on biometric icon
   late AnimationController _pulseController;
@@ -135,6 +139,14 @@ class _IdentityVerificationScreenState extends State<IdentityVerificationScreen>
           _studentId = args['studentId']?.toString() ?? '';
           _subjectName = args['subjectName']?.toString() ?? 'Unknown Subject';
         });
+      }
+
+      // Fallback: use auth provider if studentId is empty
+      if (_studentId.isEmpty) {
+        final authUserId = ref.read(currentUserIdProvider);
+        if (authUserId != null && authUserId.isNotEmpty) {
+          _studentId = authUserId;
+        }
       }
 
       if (_selectedMethod == 'face') {
