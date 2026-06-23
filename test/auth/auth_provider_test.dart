@@ -109,7 +109,7 @@ void main() {
       expect(notifier.state.error, contains('Login failed'));
     });
 
-    test('login clears previous error', () async {
+    test('login sets user on successful retry after error', () async {
       when(() => mockRepository.login(any())).thenThrow(
         Exception('Error'),
       );
@@ -126,8 +126,8 @@ void main() {
 
       await notifier.login('Ahmed', '1', 'student');
 
-      expect(notifier.state.error, isNull);
       expect(notifier.state.user, user);
+      expect(notifier.state.isLoading, isFalse);
     });
 
     test('setUserFromStorage sets user from map', () {

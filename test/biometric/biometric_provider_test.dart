@@ -1,12 +1,17 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'dart:typed_data';
 import 'package:auto_attendace/features/biometric/providers/biometric_provider.dart';
 import 'package:auto_attendace/features/biometric/data/face_recognition_service.dart';
 
 class MockFaceRecognitionService extends Mock implements FaceRecognitionService {}
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(Uint8List(0));
+  });
+
   group('BiometricState', () {
     test('default values are correct', () {
       const state = BiometricState();
@@ -160,7 +165,6 @@ void main() {
     });
 
     test('attendanceCheckIn clears previous error', () async {
-      // First call fails
       final failResult = AttendanceCheckInResult(
         success: false,
         errorMessage: 'Error',
@@ -178,7 +182,6 @@ void main() {
 
       expect(notifier.state.errorMessage, 'Error');
 
-      // Second call succeeds
       final successResult = AttendanceCheckInResult(
         success: true,
         status: 'present',

@@ -27,52 +27,51 @@ class AppTopBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundImage: avatarUrl != null
-                    ? NetworkImage(avatarUrl!)
-                    : null,
-                backgroundColor: const Color(0xFF2E5BFF),
-                child: avatarUrl == null
-                    ? const Icon(Icons.person, color: Colors.white)
-                    : null,
-              ),
-              const SizedBox(width: 12),
+          CircleAvatar(
+            radius: 20,
+            backgroundImage: avatarUrl != null
+                ? NetworkImage(avatarUrl!)
+                : null,
+            backgroundColor: const Color(0xFF2E5BFF),
+            child: avatarUrl == null
+                ? const Icon(Icons.person, color: Colors.white)
+                : null,
+          ),
+          const SizedBox(width: 12),
 
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Hi, $userName',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black54,
-                    ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hi, $userName',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black54,
                   ),
-                  const Text(
-                    'Academic Luminary',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const Text(
+                  'Academic Luminary',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
-                ],
-              ),
-            ],
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
 
-          // Status pill (SYNCED) - shown between user info and notification
-          if (showStatusPill)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: StatusPill(text: statusText, type: StatusType.success),
-            ),
+          if (showStatusPill) ...[
+            const SizedBox(width: 8),
+            StatusPill(text: statusText, type: StatusType.success),
+          ],
+
+          const SizedBox(width: 8),
 
           GestureDetector(
             onTap: onNotificationTap,
@@ -84,7 +83,7 @@ class AppTopBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha:0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),

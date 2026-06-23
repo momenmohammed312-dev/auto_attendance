@@ -58,7 +58,9 @@ class _DoctorMonitorScreenState extends ConsumerState<DoctorMonitorScreen>
 
   void _startPolling() {
     _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      ref.read(sessionProvider.notifier).refreshAttendees();
+      if (mounted) {
+        ref.read(sessionProvider.notifier).refreshAttendees();
+      }
     });
     ref.read(sessionProvider.notifier).refreshAttendees();
   }
