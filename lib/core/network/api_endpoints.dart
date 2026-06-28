@@ -25,5 +25,20 @@ class ApiEndpoints {
       '/attendance/check-in/$employeeId';
 
   // ── Backend API (Dashboard) ──
-  static const String backendBaseUrl = 'https://medoedress999-backendapi.hf.space';
+  static const String backendBaseUrl = 'https://medoedress999-backendapi.hf.space/';
+
+  // ── Lecturer Endpoints ──
+  static const String lecturers = '/lecturers';
+  static String lecturerById(String id) => '/lecturers/$id';
+  static String lecturerCourses(String id) => '/lecturers/$id/courses';
+  static String lecturerStudents(String id) => '/lecturers/$id/students';
+
+  // ── Course Endpoints ──
+  static const String courses = '/courses';
+  static String courseById(String id) => '/courses/$id';
+  static String courseStudents(String id) => '/courses/$id/students';
+
+  // ── Student Endpoints ──
+  static const String students = '/students';
+  static String studentById(String id) => '/students/$id';
 }

@@ -28,6 +28,7 @@ import '../features/student/screens/excuse_request_screen.dart';
 
 // Doctor screens
 import '../features/lecturer/screens/doctor_dashboard_screen.dart';
+import '../features/lecturer/screens/doctor_profile_screen.dart';
 
 // Biometric screens
 import '../features/biometric/screens/biometric_enrollment_screen.dart';
@@ -77,6 +78,10 @@ class AppRoutes {
   /// Doctor Dashboard - Main screen for instructors (placeholder for now)
   /// TODO: Create actual doctor dashboard screen
   static const String doctorDashboard = '/doctor/dashboard';
+
+  /// Doctor Profile - Shows doctor information and app settings
+  /// Route: /doctor/profile
+  static const String doctorProfile = '/doctor/profile';
 
   // ============================================================
   // BIOMETRIC ROUTES
@@ -155,6 +160,11 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => const DoctorDashboardScreen(),
         );
+
+      /// Doctor Profile route - Shows profile and settings
+      /// Arguments: None (uses current user and lecturer from providers)
+      case AppRoutes.doctorProfile:
+        return MaterialPageRoute(builder: (_) => const DoctorProfileScreen());
 
       // ============================================================
       // BIOMETRIC ROUTES

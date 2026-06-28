@@ -4,31 +4,18 @@
 
 // Flutter core imports
 import 'package:flutter/material.dart';
-
-// Riverpod for state management
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-// Data models
 import '../data/models/schedule_item.dart';
 import '../data/models/subject_attendance.dart';
-
-// Riverpod providers for state management
 import '../providers/student_provider.dart';
-
-// Student-specific widgets
 import '../widgets/attendance_circle_chart.dart';
 import '../widgets/schedule_timeline_item.dart';
 import '../widgets/subject_card.dart';
-
-// Shared/reusable widgets
 import '../../../shared/widgets/app_bottom_nav.dart';
 import '../../../shared/widgets/app_top_bar.dart';
-
-// Auth provider for user data
 import '../../../auth/providers/auth_provider.dart';
-
-// App router for navigation
 import '../../../router/app_router.dart';
+import '../../../features/lecturer/providers/global_session_provider.dart';
 
 /// Student Dashboard Screen - Main landing page for students.
 ///
@@ -176,6 +163,10 @@ class _StudentDashboardScreenState
       );
     }
 
+    // Watch global session state
+    final globalSession = ref.watch(globalSessionProvider);
+    final hasActiveSession = globalSession.activeSession != null;
+
     // Main dashboard content with pull-to-refresh
     return RefreshIndicator(
       onRefresh: _onRefresh,
@@ -185,14 +176,104 @@ class _StudentDashboardScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ==================== HEADER SECTION ====================
-            // Top bar with avatar, greeting, SYNCED pill, and notification
             AppTopBar(
               userName: userName ?? 'Student',
               onNotificationTap: _onNotificationTap,
               showStatusPill: true,
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
+
+            // ==================== ACTIVE SESSION BANNER ====================
+            if (hasActiveSession)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2E5BFF), Color(0xFF1E3FAF)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2E5BFF).withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 10, height: 10,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle, color: Colors.greenAccent,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'LIVE SESSION',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        globalSession.activeSession!.subjectName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        globalSession.activeSession!.subjectCode,
+                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.person, color: Colors.white70, size: 16),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'د. أحمد محمد',
+                            style: TextStyle(color: Colors.white70, fontSize: 13),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'Tap to Attend',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            SizedBox(height: hasActiveSession ? 16 : 30),
 
             // ==================== ATTENDANCE SECTION ====================
             // Circular chart showing overall attendance percentage
@@ -415,25 +496,53 @@ class _StudentDashboardScreenState
   /// check user's preferred method from settings and navigate
   /// to VerificationMethodsScreen instead.
   void _onAttendButtonTap() async {
-    // Navigate to biometric verification screen
-    // Pass method and studentId from auth provider
     final authUser = ref.read(authProvider).user;
+    final globalSession = ref.read(globalSessionProvider);
+    if (authUser == null) return;
+
+    // Pick subject: active session or choose from list
+    String subjectName;
+    if (globalSession.activeSession != null) {
+      subjectName = globalSession.activeSession!.subjectName;
+    } else {
+      final schedule = ref.read(todayScheduleProvider);
+      final subjects = schedule.map((s) => s.subjectName).toList();
+      if (subjects.isEmpty) {
+        subjectName = 'General';
+      } else if (subjects.length == 1) {
+        subjectName = subjects.first;
+      } else {
+        subjectName = await showDialog<String>(
+          context: context,
+          builder: (ctx) => SimpleDialog(
+            title: const Text('Select Subject'),
+            children: subjects.map((s) => SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, s),
+              child: Text(s),
+            )).toList(),
+          ),
+        ) ?? subjects.first;
+      }
+    }
+
     final result = await Navigator.pushNamed(
       context,
       AppRoutes.identityVerification,
       arguments: {
         'method': 'face',
-        'studentId': authUser?.id ?? '',
+        'studentId': authUser.id,
+        'subjectName': subjectName,
       },
     );
 
-    // Handle verification result
     if (result != null && result is Map) {
-      // Verification successful - refresh dashboard data
-      // TODO: Refresh attendance stats and recent attendance list
+      if (globalSession.activeSession != null) {
+        ref.read(globalSessionProvider.notifier).addAttendee(
+          studentId: authUser.id,
+          studentName: authUser.name,
+        );
+      }
       debugPrint('Attendance recorded: $result');
-
-      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -444,7 +553,6 @@ class _StudentDashboardScreenState
         );
       }
     } else {
-      // User cancelled or verification failed
       debugPrint('Attendance cancelled or failed');
     }
   }

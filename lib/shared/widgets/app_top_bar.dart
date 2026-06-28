@@ -10,6 +10,7 @@ class AppTopBar extends StatelessWidget {
   final String userName;
   final String? avatarUrl;
   final VoidCallback? onNotificationTap;
+  final VoidCallback? onAvatarTap;
   final bool showStatusPill;
   final String statusText;
 
@@ -18,6 +19,7 @@ class AppTopBar extends StatelessWidget {
     required this.userName,
     this.avatarUrl,
     this.onNotificationTap,
+    this.onAvatarTap,
     this.showStatusPill = false,
     this.statusText = 'SYNCED',
   });
@@ -28,15 +30,18 @@ class AppTopBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundImage: avatarUrl != null
-                ? NetworkImage(avatarUrl!)
-                : null,
-            backgroundColor: const Color(0xFF2E5BFF),
-            child: avatarUrl == null
-                ? const Icon(Icons.person, color: Colors.white)
-                : null,
+          GestureDetector(
+            onTap: onAvatarTap,
+            child: CircleAvatar(
+              radius: 20,
+              backgroundImage: avatarUrl != null
+                  ? NetworkImage(avatarUrl!)
+                  : null,
+              backgroundColor: const Color(0xFF2E5BFF),
+              child: avatarUrl == null
+                  ? const Icon(Icons.person, color: Colors.white)
+                  : null,
+            ),
           ),
           const SizedBox(width: 12),
 

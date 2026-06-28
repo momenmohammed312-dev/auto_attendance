@@ -1,6 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:auto_attendace/features/student/data/models/attendance_record.dart';
 import 'package:auto_attendace/features/student/data/models/schedule_item.dart';
 import 'package:auto_attendace/features/student/data/models/subject_attendance.dart';
+import 'package:auto_attendace/features/student/data/models/student_model.dart';
+import 'package:auto_attendace/core/network/api_client.dart';
 
 /// Repository for fetching student-related data from the API.
 ///
@@ -8,15 +11,31 @@ import 'package:auto_attendace/features/student/data/models/subject_attendance.d
 /// when backend is ready.
 ///
 /// Methods:
+/// - [getStudents]: Fetches all students from the API
 /// - [getAttendanceForSubject]: Fetches attendance records for a specific subject
 /// - [getSubjectAttendanceSummary]: Fetches summary for all subjects
 /// - [getTodaySchedule]: Fetches today's lecture schedule
 /// - [getAttendanceStatistics]: Fetches overall statistics for reports
 class StudentRepository {
-  final String baseUrl = 'https://api.university.edu/student';
-  static final StudentRepository _instance = StudentRepository._internal();
-  factory StudentRepository() => _instance;
-  StudentRepository._internal();
+  final Dio _dio;
+
+  StudentRepository({Dio? dio}) : _dio = dio ?? ApiClient().backendDio;
+
+  /// Fetches all students from the API
+  Future<List<StudentModel>> getStudents() async {
+    try {
+      final response = await _dio.get('/students');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data as List<dynamic>;
+        return data
+            .map((item) => StudentModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+      throw Exception('Failed to fetch students');
+    } on DioException catch (e) {
+      throw Exception('Error fetching students: ${e.message}');
+    }
+  }
 
   /// Fetches attendance records for a specific subject.
   ///

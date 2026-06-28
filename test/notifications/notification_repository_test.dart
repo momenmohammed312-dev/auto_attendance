@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:dio/dio.dart';
 import 'package:auto_attendace/features/notifications/data/notification_repository.dart';
 import 'package:auto_attendace/features/notifications/data/notification_model.dart';
 

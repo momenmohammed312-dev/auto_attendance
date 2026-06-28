@@ -1,66 +1,140 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:dio/dio.dart';
 import 'package:auto_attendace/auth/data/auth_repository.dart';
 import 'package:auto_attendace/auth/data/model/login_request.dart';
 import 'package:auto_attendace/auth/data/model/user_model.dart';
 
+class MockDio extends Mock implements Dio {}
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 void main() {
+  late Dio mockDio;
+  late AuthRepository repository;
+
   setUpAll(() {
     registerFallbackValue(
       LoginRequest(name: '', studentId: '', role: ''),
     );
   });
 
-  group('AuthRepository', () {
-    late AuthRepository repository;
+  setUp(() {
+    mockDio = MockDio();
+    repository = AuthRepository(dio: mockDio);
+  });
 
-    setUp(() {
-      repository = AuthRepository();
-    });
+  group('AuthRepository - Student Login', () {
+    test('login returns student mock data when API fails', () async {
+      when(() => mockDio.get(any())).thenThrow(DioException(
+        requestOptions: RequestOptions(path: '/students'),
+        type: DioExceptionType.connectionTimeout,
+      ));
 
-    test('login returns UserModel with correct data', () async {
       final request = LoginRequest(
-        name: 'Ahmed',
-        studentId: '12345',
+        name: 'محمد أحمد علي',
+        studentId: 'st_001',
         role: 'student',
       );
-
       final user = await repository.login(request);
 
       expect(user, isA<UserModel>());
-      expect(user.id, '12345');
-      expect(user.name, 'Ahmed');
-      expect(user.email, '12345@university.edu');
+      expect(user.id, 'st_001');
+      expect(user.name, 'محمد أحمد علي');
+      expect(user.email, 'mohamed.ali@university.edu');
       expect(user.role, 'student');
     });
 
-    test('login generates email from studentId', () async {
-      final request = LoginRequest(
-        name: 'Sara',
-        studentId: '99999',
-        role: 'doctor',
-      );
+    test('login with name match returns correct student', () async {
+      when(() => mockDio.get(any())).thenThrow(DioException(
+        requestOptions: RequestOptions(path: '/students'),
+        type: DioExceptionType.connectionTimeout,
+      ));
 
+      final request = LoginRequest(
+        name: 'مؤمن محمد',
+        studentId: 'st_006',
+        role: 'student',
+      );
       final user = await repository.login(request);
 
-      expect(user.email, '99999@university.edu');
-      expect(user.role, 'doctor');
+      expect(user.name, 'مؤمن محمد');
+      expect(user.id, 'st_006');
     });
 
-    test('login takes approximately 1 second (mock delay)', () async {
+    test('login with password match (123456) returns مؤمن محمد', () async {
+      when(() => mockDio.get(any())).thenThrow(DioException(
+        requestOptions: RequestOptions(path: '/students'),
+        type: DioExceptionType.connectionTimeout,
+      ));
+
       final request = LoginRequest(
-        name: 'Test',
-        studentId: '00001',
+        name: 'anything',
+        studentId: '123456',
+        role: 'student',
+      );
+      final user = await repository.login(request);
+
+      expect(user.name, 'مؤمن محمد');
+      expect(user.id, 'st_006');
+    });
+
+    test('login throws when student not found', () async {
+      when(() => mockDio.get(any())).thenThrow(DioException(
+        requestOptions: RequestOptions(path: '/students'),
+        type: DioExceptionType.connectionTimeout,
+      ));
+
+      final request = LoginRequest(
+        name: 'غير موجود',
+        studentId: '000',
         role: 'student',
       );
 
-      final stopwatch = Stopwatch()..start();
-      await repository.login(request);
-      stopwatch.stop();
+      expect(
+        () => repository.login(request),
+        throwsA(isA<Exception>()),
+      );
+    });
+  });
 
-      expect(stopwatch.elapsedMilliseconds, greaterThanOrEqualTo(900));
+  group('AuthRepository - Doctor Login', () {
+    test('login returns doctor when name contains أحمد', () async {
+      final request = LoginRequest(
+        name: 'أحمد',
+        studentId: '000',
+        role: 'doctor',
+      );
+      final user = await repository.login(request);
+
+      expect(user, isA<UserModel>());
+      expect(user.name, 'د. أحمد محمد');
+      expect(user.role, 'doctor');
+    });
+
+    test('login returns doctor when name contains ahmed', () async {
+      final request = LoginRequest(
+        name: 'ahmed',
+        studentId: '000',
+        role: 'doctor',
+      );
+      final user = await repository.login(request);
+
+      expect(user.name, 'د. أحمد محمد');
+      expect(user.role, 'doctor');
+    });
+
+    test('login throws when doctor not found', () async {
+      final request = LoginRequest(
+        name: 'خالد',
+        studentId: '000',
+        role: 'doctor',
+      );
+
+      expect(
+        () => repository.login(request),
+        throwsA(isA<Exception>()),
+      );
     });
   });
 
